@@ -1,0 +1,9 @@
+“Add a dedicated slide titled ‘Meet Tara, Your AI Copilot’ that highlights:
+
+- Tara is embedded in every dashboard as a floating assistant.
+- Context-aware guidance for shipments, POD issues, finance approvals, compliance.
+- Bilingual English & Hindi responses; mention Hindi tagline: ‘तारा आपके उपयोगकर्ताओं की हेल्पलाइन है—हमेशा तैयार, हमेशा भरोसेमंद।’
+- Example tasks Tara handles: summarize delayed loads, draft transporter emails, answer ERP questions, surface KPIs.
+- Quantify impact (e.g., “Reduces support tickets by 30%” or “Saves ops teams 4 hours/day”).
+- Include a screenshot/mock of the Tara sidebar and a short testimonial quote about Tara improving productivity.
+

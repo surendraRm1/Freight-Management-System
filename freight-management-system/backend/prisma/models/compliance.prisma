@@ -1,0 +1,25 @@
+model VendorProfile {
+  id                  Int      @id @default(autoincrement())
+  vendorId            Int      @unique
+  legalName           String?
+  gstin               String?  @unique
+  pan                 String?
+  tan                 String?
+  addressLine1        String?
+  addressLine2        String?
+  city                String?
+  state               String?
+  postalCode          String?
+  country             String?  @default("IN")
+  rcmEligible         Boolean  @default(false)
+  gstRegistrationType String?
+  contactPerson       String?
+  contactEmail        String?
+  contactPhone        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@map("vendor_profiles")
+}

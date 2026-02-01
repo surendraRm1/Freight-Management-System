@@ -1,0 +1,77 @@
+const express = require('express');
+const router = express.Router();
+
+const { authenticateToken, authorizeRole } = require('../middleware/auth');
+const transporterController = require('../controllers/transporterController');
+
+router.get(
+  '/quotes',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN', 'COMPANY_ADMIN'),
+  transporterController.getPendingQuoteRequests,
+);
+
+router.post(
+  '/quotes/:responseId/respond',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN'),
+  transporterController.respondToQuoteRequest,
+);
+
+router.get(
+  '/assignments',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN', 'COMPANY_ADMIN'),
+  transporterController.getPendingAssignments,
+);
+
+router.post(
+  '/assignments/:shipmentId/respond',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN'),
+  transporterController.respondToAssignment,
+);
+
+router.post(
+  '/shipments/:shipmentId/driver-info',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN'),
+  transporterController.updateDriverInfo,
+);
+
+router.post(
+  '/shipments/:shipmentId/location',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'ADMIN'),
+  transporterController.updateDriverLocation,
+);
+
+router.get(
+  '/drivers',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR', 'COMPANY_ADMIN', 'ADMIN'),
+  transporterController.getDrivers,
+);
+
+router.post(
+  '/drivers',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR'),
+  transporterController.createDriver,
+);
+
+router.put(
+  '/drivers/:driverId',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR'),
+  transporterController.updateDriver,
+);
+
+router.delete(
+  '/drivers/:driverId',
+  authenticateToken,
+  authorizeRole('AGENT', 'VENDOR'),
+  transporterController.deleteDriver,
+);
+
+module.exports = router;

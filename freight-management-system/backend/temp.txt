@@ -1,0 +1,47 @@
+model Shipment {
+  id                       Int              @id @default(autoincrement())
+  userId                   Int
+  companyId                Int?
+  quoteRequestId           Int?             @unique
+  transporterQuoteId       Int?             @unique
+  selectedVendorId         Int?
+  agreementId              Int?
+  rateCardId               Int?
+  trackingNumber           String?          @unique
+  fromLocation             String
+  toLocation               String
+  fromLat                  Float?
+  fromLng                  Float?
+  toLat                    Float?
+  toLng                    Float?
+  weight                   Float?
+  shipmentType             String?
+  urgency                  String?
+  status                   ShipmentStatus   @default(PENDING)
+  bookingStatus            BookingStatus?
+  paymentStatus            PaymentStatus?
+  cost                     Float?
+  distance                 Float?
+  estimatedDelivery        DateTime?
+  pickupTime               DateTime?
+  deliveryTime             DateTime?
+  assignedToId             Int?
+  assignedDriver           String?
+  driverPhone              String?
+  driverEta                DateTime?
+  transporterResponseNotes String?
+  notes                    String?
+  ewayBillNumber           String?
+  gstInvoiceId             Int?
+  complianceStatus         ComplianceStatus @default(PENDING)
+  source                   String           @default("manual")
+  podStatus                String           @default("Pending")
+  podUrl                   String?
+  podNotes                 String?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  user                User                 @relation("shipment_owner", fields: [userId], references: [id])
+  company             Company?             @relation(fields: [companyId], references: [id])
+  quoteRequest        QuoteRequest?        @relation("quote_request_shipment", fields: [quoteRequestId], references: [id])
+  transporterQuote    QuoteResponse?       @relation("shipment_quote", fields: [transporterQuoteId], references: [id])
