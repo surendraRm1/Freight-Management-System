@@ -5,6 +5,13 @@ const { authenticateToken, authorizeRole } = require('../middleware/auth');
 const transporterController = require('../controllers/transporterController');
 
 router.get(
+  '/analytics/overview',
+  authenticateToken,
+  authorizeRole('TRANSPORTER', 'AGENT', 'COMPANY_ADMIN', 'SUPER_ADMIN'),
+  transporterController.getTransporterOverview,
+);
+
+router.get(
   '/quotes',
   authenticateToken,
   authorizeRole('AGENT', 'VENDOR', 'TRANSPORTER', 'ADMIN', 'COMPANY_ADMIN'),

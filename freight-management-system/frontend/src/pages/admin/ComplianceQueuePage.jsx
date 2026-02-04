@@ -9,6 +9,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import ComplianceOverviewPanel from '../../components/compliance/ComplianceOverviewPanel';
 
 const formatStatus = (value) =>
   String(value || '')
@@ -131,6 +132,8 @@ const ComplianceQueuePage = () => {
           Monitor pending GST, RCM, e-way bill, and KYC tasks across all shipments.
         </p>
       </div>
+
+      <ComplianceOverviewPanel />
 
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
@@ -306,4 +309,3 @@ const ComplianceQueuePage = () => {
 };
 
 export default ComplianceQueuePage;
-

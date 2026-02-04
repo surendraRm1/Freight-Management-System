@@ -15,6 +15,7 @@ const {
   listComplianceDocuments,
   downloadComplianceDocument,
 } = require('../../controllers/complianceController');
+const { getComplianceAnalytics } = require('../../controllers/complianceAnalyticsController');
 const { authenticateToken, authorizeRole } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
@@ -98,7 +99,7 @@ router.post(
 router.get(
   '/queue',
   authenticateToken,
-  authorizeRole('ADMIN'),
+  authorizeRole('ADMIN', 'COMPANY_ADMIN'),
   listComplianceQueue,
 );
 
@@ -113,6 +114,13 @@ router.get(
   authenticateToken,
   authorizeRole('ADMIN', 'USER'),
   downloadComplianceDocument,
+);
+
+router.get(
+  '/analytics/overview',
+  authenticateToken,
+  authorizeRole('COMPANY_ADMIN'),
+  getComplianceAnalytics,
 );
 
 router.get(

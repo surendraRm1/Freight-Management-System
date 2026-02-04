@@ -121,6 +121,7 @@ const ROLE_DASHBOARD_CONFIG = {
       actionCenter: true,
       recentTable: true,
       tara: true,
+      insights: false,
     },
   },
   FINANCE_APPROVER: {
@@ -153,6 +154,7 @@ const ROLE_DASHBOARD_CONFIG = {
       actionCenter: false,
       recentTable: false,
       tara: true,
+      insights: false,
     },
   },
   OPERATIONS: {
@@ -185,6 +187,7 @@ const ROLE_DASHBOARD_CONFIG = {
       actionCenter: true,
       recentTable: true,
       tara: true,
+      insights: false,
     },
   },
   TRANSPORTER: {
@@ -216,6 +219,7 @@ const ROLE_DASHBOARD_CONFIG = {
       actionCenter: false,
       recentTable: true,
       tara: true,
+      insights: false,
     },
   },
   USER: {
@@ -248,6 +252,7 @@ const ROLE_DASHBOARD_CONFIG = {
       actionCenter: false,
       recentTable: true,
       tara: true,
+      insights: true,
     },
   },
   SUPER_ADMIN: {
@@ -515,6 +520,8 @@ const ShipmentDashboard = () => {
           </div>
         )}
       </section>
+
+      {sections.insights && <UserInsightsPanel />}
 
       {notice && (
         <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>

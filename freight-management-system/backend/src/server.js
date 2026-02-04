@@ -16,6 +16,7 @@ const companyAdminRoutes = require('./routes/companyAdminRoutes');
 const legacyAdminRoutes = require('./routes/admin');
 const companyRoutes = require('./routes/companyRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
+const financeRoutes = require('./routes/financeRoutes');
 const freightRoutes = require('./routes/freight');
 const quoteRoutes = require('./routes/quotes');
 const transporterRoutes = require('./routes/transporter');
@@ -23,12 +24,15 @@ const assistantRoutes = require('./routes/assistant');
 const userRoutes = require('./routes/userRoutes');
 const complianceRoutes = require('./routes/compliance');
 const { authenticateToken } = require('./middleware/auth');
+const operationsRoutes = require('./routes/operationsRoutes');
+const { startReportDigestScheduler } = require('./services/reportDigestService');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 
 const app = express();
+app.set('etag', false);
 const PORT = process.env.PORT || 5000;
 
 const rawOrigins = process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -91,6 +95,8 @@ app.use('/api/v1/admin', (req, res, next) => {
   });
 });
 app.use('/api/v1/company', companyRoutes);
+app.use('/api/v1/finance', financeRoutes);
+app.use('/api/v1/operations', operationsRoutes);
 app.use('/api/v1/super-admin', superAdminRoutes);
 app.use('/api/v1/freight', freightRoutes);
 app.use('/api/v1/quotes', quoteRoutes);
@@ -114,6 +120,8 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   // background schedulers intentionally omitted in SaaS starter
+  startReportDigestScheduler();
 });
 
 module.exports = app;
+

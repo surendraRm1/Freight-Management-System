@@ -42,7 +42,12 @@ export const CompanyUserManagement = () => {
       });
       if (!response.ok) throw new Error('Failed to load vendors');
       const data = await response.json();
-      setVendors(Array.isArray(data) ? data : []);
+      const vendorList = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.vendors)
+          ? data.vendors
+          : [];
+      setVendors(vendorList);
     } catch (err) {
       console.warn('Failed to load vendors', err);
     }

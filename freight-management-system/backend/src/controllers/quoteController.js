@@ -50,6 +50,7 @@ const includeQuoteResponseMeta = {
       name: true,
       email: true,
       phone: true,
+      companyId: true,
     },
   },
   shipment: {
@@ -63,6 +64,20 @@ const includeQuoteResponseMeta = {
 };
 
 const sanitizeVendors = (vendors) => vendors.map((vendor) => vendor.id);
+
+const isPlatformAdmin = (user) => ['ADMIN', 'SUPER_ADMIN'].includes(user?.role);
+const isCompanyScopedAdmin = (user) => user?.role === 'COMPANY_ADMIN' && Boolean(user?.companyId);
+
+const canManageCompanyQuote = (user, quoteRequest) => {
+  if (!user || !quoteRequest) return false;
+  if (isPlatformAdmin(user)) return true;
+  if (quoteRequest.createdByUserId === user.id) return true;
+  if (isCompanyScopedAdmin(user)) {
+    const creatorCompanyId = quoteRequest.createdBy?.companyId;
+    return creatorCompanyId && creatorCompanyId === user.companyId;
+  }
+  return false;
+};
 
 const createQuoteRequest = async (req, res) => {
   try {
@@ -183,9 +198,20 @@ const createQuoteRequest = async (req, res) => {
 
 const getQuoteRequests = async (req, res) => {
   try {
-    const isAdmin = req.user.role === 'ADMIN';
+    let where = {};
+    if (isPlatformAdmin(req.user)) {
+      where = {};
+    } else if (isCompanyScopedAdmin(req.user)) {
+      if (!req.user.companyId) {
+        return res.status(403).json({ error: 'Company context missing' });
+      }
+      where = { createdBy: { companyId: req.user.companyId } };
+    } else {
+      where = { createdByUserId: req.user.id };
+    }
+
     const requests = await prisma.quoteRequest.findMany({
-      where: isAdmin ? {} : { createdByUserId: req.user.id },
+      where,
       orderBy: { createdAt: 'desc' },
       include: includeQuoteResponseMeta,
     });
@@ -214,7 +240,7 @@ const getQuoteRequestById = async (req, res) => {
       return res.status(404).json({ error: 'Quotation request not found.' });
     }
 
-    if (req.user.role !== 'ADMIN' && req.user.id !== request.createdByUserId) {
+    if (!canManageCompanyQuote(req.user, request)) {
       return res.status(403).json({ error: 'You are not allowed to view this quotation request.' });
     }
 
@@ -240,16 +266,17 @@ const approveQuoteResponse = async (req, res) => {
         quoteRequest: {
           include: {
             responses: true,
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-              },
-            },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            companyId: true,
           },
         },
+      },
+    },
       },
     });
 
@@ -259,7 +286,7 @@ const approveQuoteResponse = async (req, res) => {
 
     const { quoteRequest } = quoteResponse;
 
-    if (req.user.role !== 'ADMIN' && req.user.id !== quoteRequest.createdByUserId) {
+    if (!canManageCompanyQuote(req.user, quoteRequest)) {
       return res.status(403).json({ error: 'You are not allowed to approve this quotation.' });
     }
 
@@ -802,6 +829,11 @@ const getQuoteResponseConsentHistory = async (req, res) => {
         quoteRequest: {
           select: {
             createdByUserId: true,
+            createdBy: {
+              select: {
+                companyId: true,
+              },
+            },
           },
         },
       },
@@ -811,11 +843,16 @@ const getQuoteResponseConsentHistory = async (req, res) => {
       return res.status(404).json({ error: 'Quotation response not found.' });
     }
 
-    const isAdmin = req.user.role === 'ADMIN';
+    const isAdmin = isPlatformAdmin(req.user);
     const isShipper = quoteResponse.quoteRequest && quoteResponse.quoteRequest.createdByUserId === req.user.id;
     const isTransporter = req.user.vendorId && req.user.vendorId === quoteResponse.vendorId;
 
-    if (!isAdmin && !isShipper && !isTransporter) {
+    const isCompanyManager =
+      isCompanyScopedAdmin(req.user) &&
+      quoteResponse.quoteRequest?.createdBy?.companyId &&
+      quoteResponse.quoteRequest.createdBy.companyId === req.user.companyId;
+
+    if (!isAdmin && !isShipper && !isTransporter && !isCompanyManager) {
       return res.status(403).json({ error: 'You are not authorized to view this consent history.' });
     }
 

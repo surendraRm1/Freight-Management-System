@@ -8,6 +8,7 @@ const {
 const logger = require('../utils/logger');
 const { notifyUserWithEmail, formatDateTime } = require('../services/notificationService');
 const prisma = require('../lib/prisma');
+const transporterAnalyticsService = require('../services/transporterAnalyticsService');
 
 const hasTransporterPrivileges = (user = {}) =>
   user.role === 'ADMIN' || user.role === 'COMPANY_ADMIN';
@@ -331,7 +332,6 @@ const getPendingAssignments = async (req, res) => {
             quotedPrice: true,
             estimatedDelivery: true,
             consentStatus: true,
-            consentAt: true,
             expiresAt: true,
           },
         },
@@ -846,6 +846,28 @@ const deleteDriver = async (req, res) => {
   }
 };
 
+const getTransporterOverview = async (req, res) => {
+  try {
+    let vendorId = req.user?.vendorId ?? null;
+    if (!vendorId && hasTransporterPrivileges(req.user)) {
+      const override = parseInt(req.query.vendorId, 10);
+      if (!Number.isNaN(override)) {
+        vendorId = override;
+      }
+    }
+
+    if (!vendorId) {
+      return res.status(403).json({ error: 'Transporter context missing' });
+    }
+
+    const overview = await transporterAnalyticsService.getTransporterOverview(vendorId);
+    return res.json(overview);
+  } catch (error) {
+    logger.error('Transporter overview error', error);
+    return res.status(500).json({ error: 'Failed to load transporter analytics overview.' });
+  }
+};
+
 module.exports = {
   getPendingQuoteRequests,
   respondToQuoteRequest,
@@ -857,4 +879,5 @@ module.exports = {
   createDriver,
   updateDriver,
   deleteDriver,
+  getTransporterOverview,
 };

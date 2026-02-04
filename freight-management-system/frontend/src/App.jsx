@@ -27,15 +27,18 @@ import SuperAdminCompanyUsers from './pages/super-admin/SuperAdminCompanyUsers';
 import SuperAdminPlatformUsers from './pages/super-admin/SuperAdminPlatformUsers';
 import { FinanceDashboard } from './components/FinanceDashboard';
 import AccountSecurityPage from './pages/user/AccountSecurityPage';
+import OperationsDashboard from './pages/operations/OperationsDashboard';
+import TransporterDashboard from './pages/transporter/TransporterDashboard';
 
 const getLandingRoute = (role) => {
   switch (role) {
     case 'SUPER_ADMIN':
       return '/super-admin/dashboard';
     case 'COMPANY_ADMIN':
-    case 'OPERATIONS':
     case 'USER':
       return '/dashboard';
+    case 'OPERATIONS':
+      return '/operations';
     case 'FINANCE_APPROVER':
       return '/finance';
     case 'TRANSPORTER':
@@ -228,6 +231,14 @@ const App = () => {
               }
             />
             <Route
+              path="/operations"
+              element={
+                <ProtectedRoute requiredRole={['COMPANY_ADMIN', 'OPERATIONS']}>
+                  <OperationsDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/agent/kyc"
               element={
                 <ProtectedRoute requiredRole={['OPERATIONS', 'COMPANY_ADMIN', 'SUPER_ADMIN']}>
@@ -259,6 +270,17 @@ const App = () => {
                   redirectTo="/dashboard"
                 >
                   <TransporterInbox />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transporter/dashboard"
+              element={
+                <ProtectedRoute
+                  requiredRole={['TRANSPORTER', 'COMPANY_ADMIN', 'SUPER_ADMIN']}
+                  redirectTo="/dashboard"
+                >
+                  <TransporterDashboard />
                 </ProtectedRoute>
               }
             />

@@ -311,6 +311,7 @@ model RateCard {
   agreement Agreement @relation(fields: [agreementId], references: [id])
   Vendor    Vendor?   @relation(fields: [vendorId], references: [id])
   vendorId  Int?
+  shipments Shipment[]
 }
 
 model QuoteRequest {
@@ -418,6 +419,7 @@ model Shipment {
   company             Company?             @relation(fields: [companyId], references: [id])
   quoteRequest        QuoteRequest?        @relation("quote_request_shipment", fields: [quoteRequestId], references: [id])
   transporterQuote    QuoteResponse?       @relation("shipment_quote", fields: [transporterQuoteId], references: [id])
+  rateCard            RateCard?            @relation(fields: [rateCardId], references: [id])
   vendor              Vendor?              @relation(fields: [selectedVendorId], references: [id])
   assignedTo          User?                @relation("assigned_to", fields: [assignedToId], references: [id])
   statusHistory       StatusHistory[]

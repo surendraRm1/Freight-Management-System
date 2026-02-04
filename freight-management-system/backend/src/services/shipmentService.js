@@ -5,6 +5,19 @@ const { redisClient, isRedisReady } = require('../utils/redisClient');
 const logger = require('../utils/logger');
 
 const CACHE_TTL = 3600; // 1 hour
+const buildCacheKey = (companyId) => `shipments:company:${companyId}:v2`;
+
+const buildCompanyShipmentScope = (companyId) => ({
+    OR: [
+        { companyId },
+        {
+            AND: [
+                { companyId: null },
+                { user: { companyId } },
+            ],
+        },
+    ],
+});
 
 class ShipmentService {
     async createShipment(data, user) {
@@ -54,7 +67,7 @@ class ShipmentService {
         // Invalidate cache
         if (isRedisReady()) {
             try {
-                await redisClient.del(`shipments:company:${companyId}`);
+                await redisClient.del(buildCacheKey(companyId));
             } catch (err) {
                 logger.error('Failed to invalidate cache', err);
             }
@@ -68,7 +81,7 @@ class ShipmentService {
             throw new AppError('Company context missing. Contact support.', 403);
         }
 
-        const cacheKey = `shipments:company:${companyId}`;
+        const cacheKey = buildCacheKey(companyId);
 
         if (isRedisReady()) {
             try {
@@ -83,7 +96,7 @@ class ShipmentService {
         }
 
         const shipments = await shipmentRepository.findMany(
-            { companyId },
+            buildCompanyShipmentScope(companyId),
             {
                 include: {
                     vendor: {
@@ -138,7 +151,7 @@ class ShipmentService {
             // Invalidate cache
             if (isRedisReady()) {
                 try {
-                    await redisClient.del(`shipments:company:${companyId}`);
+                await redisClient.del(buildCacheKey(companyId));
                 } catch (err) {
                     logger.error('Failed to invalidate cache', err);
                 }
