@@ -1,0 +1,47 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: freight-management-system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "9582:5432"
+
+  ai-service:
+    build:
+      context: ./freight-management-system/ai-service
+    environment:
+      AI_SERVICE_HOST: 0.0.0.0
+      AI_SERVICE_PORT: 9000
+    ports:
+      - "9000:9000"
+
+  backend:
+    build:
+      context: ./freight-management-system/backend
+    env_file:
+      - ./freight-management-system/backend/.env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/freight-management-system
+      AI_SERVICE_URL: http://ai-service:9000
+    ports:
+      - "9581:9581"
+    depends_on:
+      - postgres
+      - ai-service
+
+  frontend:
+    build:
+      context: ./freight-management-system/frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:

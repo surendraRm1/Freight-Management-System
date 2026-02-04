@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../lib/prisma');
-const redisClient = require('../utils/redisClient');
+const { redisClient, isRedisReady } = require('../utils/redisClient');
 const logger = require('../utils/logger');
 const { sendPasswordResetEmail, sendTwoFactorCodeEmail } = require('../services/emailService');
 
@@ -149,6 +149,7 @@ const login = async (req, res) => {
         companyId: true,
         vendorId: true,
         isActive: true,
+        twoFactorEnabled: true,
         company: {
           select: {
             id: true,
@@ -194,6 +195,15 @@ const login = async (req, res) => {
       }
     }
 
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+    } catch (updateError) {
+      logger.warn('Failed to update last login timestamp', { userId: user.id, error: updateError.message });
+    }
+
     const tokenPayload = {
       id: user.id,
       email: user.email,
@@ -222,7 +232,13 @@ const logout = async (req, res) => {
   const ttlSeconds = exp ? Math.max(Math.floor((exp - Date.now()) / 1000), 1) : 12 * 60 * 60;
 
   try {
-    await redisClient.setEx(`revoked:${req.authToken}`, ttlSeconds, 'true');
+    if (isRedisReady()) {
+      try {
+        await redisClient.setEx(`revoked:${req.authToken}`, ttlSeconds, 'true');
+      } catch (cacheError) {
+        logger.warn('Failed to cache revocation token', { error: cacheError.message });
+      }
+    }
   } catch (error) {
     logger.warn('Failed to persist logout token', { error: error.message });
   }

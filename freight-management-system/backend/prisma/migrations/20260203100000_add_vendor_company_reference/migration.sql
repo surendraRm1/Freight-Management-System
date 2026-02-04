@@ -1,0 +1,6 @@
+ALTER TABLE "Vendor" ADD COLUMN "companyId" INTEGER;
+
+ALTER TABLE "Vendor"
+  ADD CONSTRAINT "Vendor_companyId_fkey"
+  FOREIGN KEY ("companyId") REFERENCES "Company"("id")
+  ON DELETE SET NULL ON UPDATE CASCADE;

@@ -1,10 +1,10 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
-const redisClient = require('../utils/redisClient');
+const { redisClient, isRedisReady } = require('../utils/redisClient');
 const logger = require('../utils/logger');
 
 const isTokenRevoked = async (token) => {
-  if (!token) return false;
+  if (!token || !isRedisReady()) return false;
   try {
     const revoked = await redisClient.get(`revoked:${token}`);
     return Boolean(revoked);

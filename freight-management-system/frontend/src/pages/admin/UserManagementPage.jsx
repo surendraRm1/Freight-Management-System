@@ -37,7 +37,7 @@ const STATUS_FILTERS = [
 const pageSizeOptions = [10, 25, 50, 100];
 
 const formatDateTime = (value) => {
-  if (!value) return '�';
+  if (!value) return 'Never';
   try {
     return new Date(value).toLocaleString('en-IN', {
       day: '2-digit',
@@ -47,7 +47,7 @@ const formatDateTime = (value) => {
       minute: '2-digit',
     });
   } catch (error) {
-    return '�';
+    return 'Never';
   }
 };
 
@@ -80,6 +80,7 @@ const statusBadge = (user) => {
 const UserManagementPage = () => {
   const { api, user } = useAuth();
   const isPlatformAdmin = user?.role === 'ADMIN';
+  const canModerateRegistrations = ['ADMIN', 'COMPANY_ADMIN'].includes(user?.role);
 
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);
@@ -161,14 +162,22 @@ const UserManagementPage = () => {
     setActionLoading((prev) => ({ ...prev, [id]: value }));
   };
   const handleApprove = async (target) => {
-    if (!isPlatformAdmin) {
-      setToast({ tone: 'warning', message: 'Only platform administrators can approve registrations.' });
+    if (!canModerateRegistrations) {
+      setToast({ tone: 'warning', message: 'You do not have permission to approve registrations.' });
       return;
     }
     const note = window.prompt('Add approval note (optional):', '') ?? '';
     updateActionState(target.id, true);
     try {
-      await api.post(`/admin/registrations/${target.id}/approve`, { approvalNote: note.trim() || undefined });
+      if (isPlatformAdmin) {
+        await api.post(`/admin/registrations/${target.id}/approve`, { approvalNote: note.trim() || undefined });
+      } else {
+        await api.patch(`/admin/users/${target.id}`, {
+          approvalStatus: 'APPROVED',
+          approvalNote: note.trim() || undefined,
+          isActive: true,
+        });
+      }
       setToast({ tone: 'success', message: `Approved ${target.name}'s access.` });
       fetchStats();
       fetchUsers(page, true);
@@ -183,15 +192,22 @@ const UserManagementPage = () => {
   };
 
   const handleReject = async (target) => {
-    if (!isPlatformAdmin) {
-      setToast({ tone: 'warning', message: 'Only platform administrators can reject registrations.' });
+    if (!canModerateRegistrations) {
+      setToast({ tone: 'warning', message: 'You do not have permission to reject registrations.' });
       return;
     }
     const reason = window.prompt('Enter rejection reason:', '');
     if (!reason) return;
     updateActionState(target.id, true);
     try {
-      await api.post(`/admin/registrations/${target.id}/reject`, { reason });
+      if (isPlatformAdmin) {
+        await api.post(`/admin/registrations/${target.id}/reject`, { reason });
+      } else {
+        await api.patch(`/admin/users/${target.id}`, {
+          approvalStatus: 'REJECTED',
+          rejectionReason: reason.trim(),
+        });
+      }
       setToast({ tone: 'warning', message: `${target.name}'s registration rejected.` });
       fetchStats();
       fetchUsers(page, true);
@@ -353,7 +369,7 @@ const UserManagementPage = () => {
               <p className="text-xs uppercase tracking-wide text-slate-500">Total users</p>
               <p className="mt-2 text-3xl font-semibold text-slate-900">{stats?.totalUsers ?? 0}</p>
               <p className="mt-1 text-xs text-slate-500">
-                {stats?.approvedUsers ?? 0} approved � {stats?.rejectedUsers ?? 0} rejected
+                {stats?.approvedUsers ?? 0} approved | {stats?.rejectedUsers ?? 0} rejected
               </p>
             </div>
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -381,7 +397,7 @@ const UserManagementPage = () => {
                 {(stats?.inactive30 ?? 0) + (stats?.inactive60 ?? 0) + (stats?.inactive90 ?? 0)}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                30d: {stats?.inactive30 ?? 0} � 60d: {stats?.inactive60 ?? 0} � 90d+: {stats?.inactive90 ?? 0}
+                30d: {stats?.inactive30 ?? 0} | 60d: {stats?.inactive60 ?? 0} | 90d+: {stats?.inactive90 ?? 0}
               </p>
             </div>
           </>
@@ -508,7 +524,7 @@ const UserManagementPage = () => {
                       <td className="px-4 py-3 text-slate-600">{formatDateTime(item.lastLoginAt)}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
-                          {item.approvalStatus === 'PENDING' && isPlatformAdmin ? (
+                          {item.approvalStatus === 'PENDING' && canModerateRegistrations ? (
                             <>
                               <button
                                 type="button"

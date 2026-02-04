@@ -17,10 +17,34 @@ import {
   UserCog,
   Settings,
   Shield,
+  ChevronDown,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import TaraSidebar from '../assistant/TaraSidebar';
+
+const NAV_SECTIONS = [
+  {
+    id: 'ops',
+    title: 'Execution hub',
+    helper: 'Plan, book, and monitor shipments.',
+  },
+  {
+    id: 'network',
+    title: 'Transporter network',
+    helper: 'Collaborate with transport partners.',
+  },
+  {
+    id: 'finance',
+    title: 'Finance & compliance',
+    helper: 'Approve payouts and stay audit ready.',
+  },
+  {
+    id: 'admin',
+    title: 'Admin & security',
+    helper: 'Control access, settings, and policies.',
+  },
+];
 
 const TENANT_NAV_ITEMS = [
   {
@@ -28,6 +52,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Shipment overview',
     helper: 'Track live loads and status updates',
     icon: Truck,
+    section: 'ops',
     roles: ['COMPANY_ADMIN', 'FINANCE_APPROVER', 'OPERATIONS', 'TRANSPORTER', 'USER', 'SUPER_ADMIN'],
   },
   {
@@ -35,6 +60,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Create shipment',
     helper: 'Calculate rates and schedule pickup',
     icon: Calculator,
+    section: 'ops',
     roles: ['COMPANY_ADMIN', 'OPERATIONS', 'USER', 'SUPER_ADMIN'],
   },
   {
@@ -42,6 +68,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Quote board',
     helper: 'Review transporter quotations',
     icon: NotebookPen,
+    section: 'ops',
     roles: ['COMPANY_ADMIN', 'USER', 'SUPER_ADMIN'],
   },
   {
@@ -49,6 +76,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Transporter inbox',
     helper: 'Respond to quotes and jobs',
     icon: ListChecks,
+    section: 'network',
     roles: ['TRANSPORTER', 'COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -56,6 +84,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Driver directory',
     helper: 'Maintain driver & vehicle contacts',
     icon: UserCog,
+    section: 'network',
     roles: ['TRANSPORTER', 'COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -63,6 +92,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Finance approvals',
     helper: 'Approve POD and transporter invoices',
     icon: ArrowUpRight,
+    section: 'finance',
     roles: ['COMPANY_ADMIN', 'FINANCE_APPROVER', 'SUPER_ADMIN'],
   },
   {
@@ -70,6 +100,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Analytics & downloads',
     helper: 'Monitor spend, SLA, and export reports',
     icon: TrendingUp,
+    section: 'finance',
     roles: ['COMPANY_ADMIN', 'FINANCE_APPROVER', 'SUPER_ADMIN'],
   },
   {
@@ -77,6 +108,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Legacy user management',
     helper: 'Approve external registrations',
     icon: UserCheck,
+    section: 'admin',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -84,6 +116,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Company users',
     helper: 'Invite teammates & manage access',
     icon: UserCheck,
+    section: 'admin',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -91,6 +124,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Company settings',
     helper: 'Manage billing & ERP webhook secret',
     icon: Settings,
+    section: 'admin',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -98,6 +132,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Agreements workspace',
     helper: 'Draft and approve transporter contracts',
     icon: FileText,
+    section: 'network',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -105,6 +140,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Transporter registry',
     helper: 'Onboard and maintain vendor profiles',
     icon: Users,
+    section: 'network',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -112,6 +148,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Compliance queue',
     helper: 'Review GST, RCM, and e-way bill tasks',
     icon: ShieldCheck,
+    section: 'finance',
     roles: ['COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -119,6 +156,7 @@ const TENANT_NAV_ITEMS = [
     label: 'KYC uploads',
     helper: 'Submit driver & vehicle compliance packs',
     icon: ClipboardList,
+    section: 'ops',
     roles: ['OPERATIONS', 'COMPANY_ADMIN', 'SUPER_ADMIN'],
   },
   {
@@ -126,6 +164,7 @@ const TENANT_NAV_ITEMS = [
     label: 'Account security',
     helper: 'Update 2FA, IP rules, and alerts',
     icon: Shield,
+    section: 'admin',
     roles: ['SUPER_ADMIN', 'COMPANY_ADMIN', 'FINANCE_APPROVER', 'OPERATIONS', 'TRANSPORTER', 'USER', 'AGENT'],
   },
 ];
@@ -162,6 +201,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openSectionId, setOpenSectionId] = useState(null);
 
   const handleLogout = async () => {
     logout();
@@ -222,8 +262,43 @@ const DashboardLayout = () => {
     return navItems.filter((item) => item.roles.includes(user?.role));
   }, [isSuperAdmin, navItems, user]);
 
-  const renderNavLinks = (onClick) =>
-    filteredNav.map((item) => {
+  const groupedNav = useMemo(() => {
+    if (isSuperAdmin) return [];
+    return NAV_SECTIONS.map((section) => ({
+      ...section,
+      items: filteredNav.filter((item) => item.section === section.id),
+    })).filter((section) => section.items.length > 0);
+  }, [filteredNav, isSuperAdmin]);
+
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    if (!groupedNav.length) {
+      setOpenSectionId(null);
+      return;
+    }
+    const activeSection = groupedNav.find((section) =>
+      section.items.some((item) => isActive(item.path)),
+    )?.id;
+
+    if (activeSection) {
+      setOpenSectionId((current) => (current === activeSection ? current : activeSection));
+      return;
+    }
+
+    setOpenSectionId((current) => {
+      if (current && groupedNav.some((section) => section.id === current)) {
+        return current;
+      }
+      return groupedNav[0]?.id ?? null;
+    });
+  }, [groupedNav, isSuperAdmin, location.pathname]);
+
+  const toggleSection = (sectionId) => {
+    setOpenSectionId((current) => (current === sectionId ? null : sectionId));
+  };
+
+  const renderNavLinks = (onClick) => {
+    const renderLink = (item) => {
       const Icon = item.icon;
       const active = isActive(item.path);
 
@@ -252,7 +327,45 @@ const DashboardLayout = () => {
           </p>
         </Link>
       );
+    };
+
+    if (isSuperAdmin) {
+      return filteredNav.map((item) => renderLink(item));
+    }
+
+    return groupedNav.map((section) => {
+      const expanded = openSectionId === section.id;
+      return (
+        <div
+          key={section.id}
+          className="rounded-2xl border border-white/10 bg-white/5 shadow-inner shadow-black/10"
+        >
+          <button
+            type="button"
+            onClick={() => toggleSection(section.id)}
+            className="flex w-full items-center justify-between px-4 py-3 text-left"
+          >
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-200">
+                {section.title}
+              </p>
+              <p className="text-[11px] text-blue-300/80">{section.helper}</p>
+            </div>
+            <ChevronDown
+              className={`h-4 w-4 text-blue-200 transition duration-200 ${
+                expanded ? 'rotate-180 text-blue-100' : ''
+              }`}
+            />
+          </button>
+          {expanded && (
+            <div className="flex flex-col gap-3 border-t border-white/10 px-4 py-3">
+              {section.items.map((item) => renderLink(item))}
+            </div>
+          )}
+        </div>
+      );
     });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">

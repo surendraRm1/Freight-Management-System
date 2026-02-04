@@ -2,24 +2,50 @@ const { createClient } = require('redis');
 const logger = require('./logger');
 
 const redisClient = createClient({
-    url: process.env.REDIS_URL || 'redis://localhost:6379'
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  disableOfflineQueue: true,
+  socket: {
+    reconnectStrategy: (retries) => Math.min(retries * 100, 3_000),
+  },
 });
+
+let redisReady = false;
 
 redisClient.on('error', (err) => {
-    logger.warn('Redis Client Error', err);
+  redisReady = false;
+  logger.warn('Redis Client Error', err);
 });
 
-redisClient.on('connect', () => {
-    logger.info('Redis Client Connected');
+redisClient.on('ready', () => {
+  redisReady = true;
+  logger.info('Redis cache connected');
 });
 
-// Graceful startup
-(async () => {
-    try {
-        await redisClient.connect();
-    } catch (err) {
-        logger.warn('Failed to connect to Redis on startup. Caching will be disabled.');
-    }
-})();
+redisClient.on('end', () => {
+  redisReady = false;
+  logger.warn('Redis connection closed');
+});
 
-module.exports = redisClient;
+const connectRedis = async () => {
+  if (redisClient.isOpen) {
+    return redisClient;
+  }
+
+  try {
+    await redisClient.connect();
+  } catch (err) {
+    logger.warn('Failed to connect to Redis. Continuing without cache.', { error: err.message });
+  }
+  return redisClient;
+};
+
+// Attempt connection on startup but don't block the app if it fails.
+connectRedis();
+
+const isRedisReady = () => redisReady && redisClient.isOpen;
+
+module.exports = {
+  redisClient,
+  isRedisReady,
+  connectRedis,
+};

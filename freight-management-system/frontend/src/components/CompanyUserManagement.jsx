@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 export const CompanyUserManagement = () => {
   const { token } = useAuth();
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ email: '', password: '', role: 'USER', name: '' });
+  const [vendors, setVendors] = useState([]);
+  const [form, setForm] = useState({ email: '', password: '', role: 'USER', name: '', vendorId: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,7 +21,8 @@ export const CompanyUserManagement = () => {
         throw new Error(err.error || 'Failed to load users');
       }
       const data = await response.json();
-      setUsers(data);
+      const nextUsers = Array.isArray(data) ? data : data?.users || [];
+      setUsers(nextUsers);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -32,23 +34,48 @@ export const CompanyUserManagement = () => {
     if (token) fetchUsers();
   }, [token, fetchUsers]);
 
+  const fetchVendors = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await fetch('/api/v1/admin/vendors', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to load vendors');
+      const data = await response.json();
+      setVendors(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to load vendors', err);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchVendors();
+  }, [fetchVendors]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     try {
+      const payload = { ...form };
+      if (payload.role !== 'TRANSPORTER') {
+        delete payload.vendorId;
+      } else if (!payload.vendorId) {
+        throw new Error('Select a vendor for transporter users.');
+      }
+
       const response = await fetch('/api/v1/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to create user');
       }
-      setForm({ email: '', password: '', role: 'USER', name: '' });
+      setForm({ email: '', password: '', role: 'USER', name: '', vendorId: '' });
       fetchUsers();
     } catch (err) {
       setError(err.message);
@@ -94,6 +121,21 @@ export const CompanyUserManagement = () => {
           <option value="TRANSPORTER">Transporter</option>
           <option value="FINANCE_APPROVER">Finance Approver</option>
         </select>
+        {form.role === 'TRANSPORTER' && (
+          <select
+            className="border border-gray-300 rounded px-3 py-2"
+            value={form.vendorId}
+            required
+            onChange={(e) => setForm((prev) => ({ ...prev, vendorId: e.target.value }))}
+          >
+            <option value="">Select vendor</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </select>
+        )}
         <div className="md:col-span-2">
           <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded">
             Create User
@@ -101,21 +143,37 @@ export const CompanyUserManagement = () => {
         </div>
       </form>
 
-      <div>
+      <div className="overflow-x-auto">
         {loading ? (
           <p className="text-gray-500">Loading users...</p>
         ) : (
-          <ul className="divide-y divide-gray-200">
-            {users.map((user) => (
-              <li key={user.id} className="py-3 flex justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{user.email}</p>
-                  <p className="text-xs text-gray-500">{user.name || 'N/A'}</p>
-                </div>
-                <span className="text-xs font-bold text-indigo-600">{user.role}</span>
-              </li>
-            ))}
-          </ul>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Vendor</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                    No users yet.
+                  </td>
+                </tr>
+              )}
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{user.role}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{user.vendor?.name || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{user.isActive ? 'Active' : 'Inactive'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

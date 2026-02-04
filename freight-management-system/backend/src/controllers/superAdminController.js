@@ -35,7 +35,7 @@ const createCompany = async (req, res) => {
         data: {
           email: admin.email,
           name: admin.name,
-          password: passwordHash,
+          passwordHash,
           role: Role.COMPANY_ADMIN,
           companyId: company.id,
         },
@@ -130,8 +130,12 @@ const exportAuditLogs = async (_req, res) => {
 };
 
 const updateCompanyProfile = async (req, res) => {
-  const { companyId } = req.params;
+  const companyId = Number(req.params.companyId);
   const { name, billingEmail, plan, subscriptionStatus, trialEndsAt, status } = req.body || {};
+
+  if (!Number.isInteger(companyId)) {
+    return res.status(400).json({ error: 'Valid companyId is required' });
+  }
 
   try {
     const updated = await prisma.company.update({
@@ -156,10 +160,10 @@ const updateCompanyProfile = async (req, res) => {
 };
 
 const rotateCompanyWebhook = async (req, res) => {
-  const { companyId } = req.params;
+  const companyId = Number(req.params.companyId);
 
-  if (!companyId) {
-    return res.status(400).json({ error: 'companyId is required' });
+  if (!Number.isInteger(companyId)) {
+    return res.status(400).json({ error: 'Valid companyId is required' });
   }
 
   try {
@@ -181,7 +185,11 @@ const rotateCompanyWebhook = async (req, res) => {
 };
 
 const getCompanyUsers = async (req, res) => {
-  const { companyId } = req.params;
+  const companyId = Number(req.params.companyId);
+
+  if (!Number.isInteger(companyId)) {
+    return res.status(400).json({ error: 'Valid companyId is required' });
+  }
 
   try {
     const users = await prisma.user.findMany({
@@ -204,8 +212,21 @@ const getCompanyUsers = async (req, res) => {
 };
 
 const upsertCompanyUser = async (req, res) => {
-  const { companyId, userId } = req.params;
+  const companyId = Number(req.params.companyId);
+  const userId = req.params.userId ? Number(req.params.userId) : undefined;
   const { email, name, password, role, isActive = true } = req.body || {};
+
+  if (!Number.isInteger(companyId)) {
+    return res.status(400).json({ error: 'Valid companyId is required' });
+  }
+
+  if (req.params.userId && !Number.isInteger(userId)) {
+    return res.status(400).json({ error: 'Valid userId is required' });
+  }
+
+  if (!userId && !password) {
+    return res.status(400).json({ error: 'Password is required when creating a user' });
+  }
 
   try {
     let data = {
@@ -217,7 +238,7 @@ const upsertCompanyUser = async (req, res) => {
     };
 
     if (password) {
-      data.password = await bcrypt.hash(password, 10);
+      data.passwordHash = await bcrypt.hash(password, 10);
     }
 
     const user = userId
@@ -242,7 +263,11 @@ const upsertCompanyUser = async (req, res) => {
 };
 
 const deleteCompanyUser = async (req, res) => {
-  const { userId } = req.params;
+  const userId = Number(req.params.userId);
+
+  if (!Number.isInteger(userId)) {
+    return res.status(400).json({ error: 'Valid userId is required' });
+  }
 
   try {
     await prisma.user.delete({ where: { id: userId } });
@@ -296,13 +321,17 @@ const listPlatformUsers = async (_req, res) => {
 };
 
 const upsertPlatformUser = async (req, res) => {
-  const { id } = req.params;
+  const id = req.params.id ? Number(req.params.id) : undefined;
   const { email, name, password, isActive = true } = req.body || {};
+
+  if (req.params.id && !Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Valid user id is required' });
+  }
 
   try {
     let data = { email, name, isActive, role: Role.SUPER_ADMIN };
     if (password) {
-      data.password = await bcrypt.hash(password, 10);
+      data.passwordHash = await bcrypt.hash(password, 10);
     }
 
     const user = id
@@ -327,7 +356,11 @@ const upsertPlatformUser = async (req, res) => {
 };
 
 const deletePlatformUser = async (req, res) => {
-  const { id } = req.params;
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'Valid user id is required' });
+  }
 
   try {
     await prisma.user.delete({ where: { id } });

@@ -18,6 +18,8 @@ const {
 const { authenticateToken, authorizeRole } = require('../../middleware/auth');
 const upload = require('../../middleware/upload');
 
+const operationsTeamRoles = ['ADMIN', 'SUPER_ADMIN', 'COMPANY_ADMIN', 'OPERATIONS', 'AGENT'];
+
 const router = express.Router();
 
 router.post(
@@ -58,7 +60,7 @@ router.post(
 router.post(
   '/kyc/driver',
   authenticateToken,
-  authorizeRole('ADMIN', 'AGENT', 'VENDOR'),
+  authorizeRole(...operationsTeamRoles),
   upload.single('document'),
   uploadDriverKyc,
 );
@@ -66,7 +68,7 @@ router.post(
 router.post(
   '/kyc/vehicle',
   authenticateToken,
-  authorizeRole('ADMIN', 'AGENT', 'VENDOR'),
+  authorizeRole(...operationsTeamRoles),
   upload.single('document'),
   uploadVehicleKyc,
 );
@@ -74,7 +76,7 @@ router.post(
 router.post(
   '/lr',
   authenticateToken,
-  authorizeRole('ADMIN', 'AGENT', 'VENDOR'),
+  authorizeRole(...operationsTeamRoles),
   upload.single('document'),
   uploadLorryReceipt,
 );
@@ -116,7 +118,7 @@ router.get(
 router.get(
   '/kyc/pending',
   authenticateToken,
-  authorizeRole('ADMIN', 'AGENT', 'VENDOR'),
+  authorizeRole(...operationsTeamRoles),
   listPendingKycShipments,
 );
 

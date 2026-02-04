@@ -21,6 +21,7 @@ const quoteRoutes = require('./routes/quotes');
 const transporterRoutes = require('./routes/transporter');
 const assistantRoutes = require('./routes/assistant');
 const userRoutes = require('./routes/userRoutes');
+const complianceRoutes = require('./routes/compliance');
 const { authenticateToken } = require('./middleware/auth');
 
 // Import middleware
@@ -96,6 +97,7 @@ app.use('/api/v1/quotes', quoteRoutes);
 app.use('/api/v1/transporter', transporterRoutes);
 app.use('/api/v1/assistant', assistantRoutes);
 app.use('/api/v1/user', userRoutes);
+app.use('/api/v1/compliance', complianceRoutes);
 app.use(webhookRoutes);
 
 // 404 handler

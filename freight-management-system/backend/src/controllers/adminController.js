@@ -624,6 +624,7 @@ const getUserStats = async (req, res) => {
         approvalStatus: true,
         isActive: true,
         createdAt: true,
+        updatedAt: true,
         lastLoginAt: true,
       },
     });
@@ -648,7 +649,7 @@ const getUserStats = async (req, res) => {
     };
 
     users.forEach((user) => {
-      const { approvalStatus, isActive, createdAt, lastLoginAt } = user;
+      const { approvalStatus, isActive, createdAt, updatedAt, lastLoginAt } = user;
       if (approvalStatus === 'PENDING') {
         stats.pendingApprovals += 1;
         return;
@@ -660,7 +661,7 @@ const getUserStats = async (req, res) => {
 
       stats.approvedUsers += 1;
 
-      const lastActivity = lastLoginAt ?? createdAt;
+      const lastActivity = lastLoginAt ?? updatedAt ?? createdAt;
       const lastActivityTime = lastActivity ? new Date(lastActivity).getTime() : 0;
 
       if (isActive && lastActivityTime >= thresholds.d30) {

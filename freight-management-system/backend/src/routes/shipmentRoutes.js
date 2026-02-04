@@ -20,7 +20,7 @@ router.post(
 router.get(
   '/',
   authenticateToken,
-  checkRole(['OPERATIONS', 'COMPANY_ADMIN', 'FINANCE_APPROVER', 'USER']),
+  checkRole(['OPERATIONS', 'COMPANY_ADMIN', 'FINANCE_APPROVER', 'TRANSPORTER', 'USER']),
   getAllShipments,
 );
 

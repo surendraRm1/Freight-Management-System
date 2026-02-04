@@ -1,7 +1,7 @@
 const shipmentRepository = require('../repositories/shipmentRepository');
 const AppError = require('../utils/AppError');
 const { ShipmentStatus } = require('@prisma/client');
-const redisClient = require('../utils/redisClient');
+const { redisClient, isRedisReady } = require('../utils/redisClient');
 const logger = require('../utils/logger');
 
 const CACHE_TTL = 3600; // 1 hour
@@ -52,10 +52,12 @@ class ShipmentService {
         const newShipment = await shipmentRepository.create(shipmentData);
 
         // Invalidate cache
-        try {
-            await redisClient.del(`shipments:company:${companyId}`);
-        } catch (err) {
-            logger.error('Failed to invalidate cache', err);
+        if (isRedisReady()) {
+            try {
+                await redisClient.del(`shipments:company:${companyId}`);
+            } catch (err) {
+                logger.error('Failed to invalidate cache', err);
+            }
         }
 
         return newShipment;
@@ -68,14 +70,16 @@ class ShipmentService {
 
         const cacheKey = `shipments:company:${companyId}`;
 
-        try {
-            const cachedData = await redisClient.get(cacheKey);
-            if (cachedData) {
-                logger.info(`Cache HIT for ${cacheKey}`);
-                return JSON.parse(cachedData);
+        if (isRedisReady()) {
+            try {
+                const cachedData = await redisClient.get(cacheKey);
+                if (cachedData) {
+                    logger.info(`Cache HIT for ${cacheKey}`);
+                    return JSON.parse(cachedData);
+                }
+            } catch (err) {
+                logger.warn('Redis cache read error', err);
             }
-        } catch (err) {
-            logger.warn('Redis error', err);
         }
 
         const shipments = await shipmentRepository.findMany(
@@ -92,11 +96,13 @@ class ShipmentService {
             }
         );
 
-        try {
-            await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(shipments));
-            logger.info(`Cache SET for ${cacheKey}`);
-        } catch (err) {
-            logger.warn('Failed to set cache', err);
+        if (isRedisReady()) {
+            try {
+                await redisClient.setEx(cacheKey, CACHE_TTL, JSON.stringify(shipments));
+                logger.info(`Cache SET for ${cacheKey}`);
+            } catch (err) {
+                logger.warn('Failed to set cache', err);
+            }
         }
 
         return shipments;
@@ -130,10 +136,12 @@ class ShipmentService {
             );
 
             // Invalidate cache
-            try {
-                await redisClient.del(`shipments:company:${companyId}`);
-            } catch (err) {
-                logger.error('Failed to invalidate cache', err);
+            if (isRedisReady()) {
+                try {
+                    await redisClient.del(`shipments:company:${companyId}`);
+                } catch (err) {
+                    logger.error('Failed to invalidate cache', err);
+                }
             }
 
             return updatedShipment;

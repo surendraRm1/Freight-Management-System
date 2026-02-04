@@ -298,14 +298,12 @@ const getPendingAssignments = async (req, res) => {
           status: {
             in: [ShipmentStatus.REQUESTED, ShipmentStatus.PENDING, ShipmentStatus.ASSIGNED],
           },
-          transporterRespondedAt: null,
         },
         {
           status: ShipmentStatus.ACCEPTED,
           OR: [
             { assignedDriver: null },
             { driverPhone: null },
-            { vehicleRegistration: null },
           ],
         },
       ],
@@ -332,7 +330,6 @@ const getPendingAssignments = async (req, res) => {
             id: true,
             quotedPrice: true,
             estimatedDelivery: true,
-            transporterNotes: true,
             consentStatus: true,
             consentAt: true,
             expiresAt: true,
@@ -393,17 +390,17 @@ const respondToAssignment = async (req, res) => {
     if (action === 'ACCEPT') {
       statusUpdate = {
         status: ShipmentStatus.ACCEPTED,
-        transporterRespondedAt: now,
-        transporterAcceptedAt: now,
+        bookingStatus: BookingStatus.CONFIRMED,
         transporterResponseNotes: notes,
+        updatedAt: now,
       };
       historyStatus = ShipmentStatus.ACCEPTED;
     } else {
       statusUpdate = {
         status: ShipmentStatus.REJECTED,
-        transporterRespondedAt: now,
-        transporterRejectedAt: now,
+        bookingStatus: BookingStatus.DECLINED,
         transporterResponseNotes: notes,
+        updatedAt: now,
       };
       historyStatus = ShipmentStatus.REJECTED;
     }

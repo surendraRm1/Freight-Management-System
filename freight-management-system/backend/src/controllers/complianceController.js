@@ -60,6 +60,7 @@ const ensureShipmentAccess = async (shipmentId, user) => {
     select: {
       id: true,
       userId: true,
+      companyId: true,
     },
   });
 
@@ -67,7 +68,18 @@ const ensureShipmentAccess = async (shipmentId, user) => {
     return { allowed: false, code: 404, message: 'Shipment not found.' };
   }
 
-  if (user.role !== 'ADMIN' && shipment.userId !== user.id) {
+  if (['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+    return { allowed: true, shipment };
+  }
+
+  const ownsShipment = shipment.userId === user.id;
+  const sameCompany =
+    Boolean(shipment.companyId) &&
+    Boolean(user.companyId) &&
+    shipment.companyId === user.companyId &&
+    ['COMPANY_ADMIN', 'OPERATIONS', 'AGENT'].includes(user.role);
+
+  if (!ownsShipment && !sameCompany) {
     return { allowed: false, code: 403, message: 'You do not have access to this shipment.' };
   }
 
