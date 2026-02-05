@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import StatCard from '../../components/ui/StatCard';
 import { ShipmentList } from '../../components/ShipmentList';
 import { FinanceDashboard } from '../../components/FinanceDashboard';
+import UserInsightsPanel from '../../components/user/UserInsightsPanel';
 
 const formatStatus = (status) =>
   String(status || '')

@@ -162,7 +162,6 @@ const respondToQuoteRequest = async (req, res) => {
     if (action === 'DECLINE') {
       updatePayload = {
         status: QuoteResponseStatus.DECLINED,
-        respondedAt: now,
         transporterNotes,
       };
     } else {
@@ -174,7 +173,6 @@ const respondToQuoteRequest = async (req, res) => {
         quotedPrice: parseFloat(quotedPrice),
         estimatedDelivery: new Date(estimatedDelivery),
         transporterNotes,
-        respondedAt: now,
         status: QuoteResponseStatus.RESPONDED,
       };
     }

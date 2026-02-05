@@ -7,7 +7,6 @@ const createNotification = async ({
   title,
   message,
   type = 'SYSTEM',
-  channel = 'SYSTEM',
   metadata,
 }) => {
   if (!userId) {
@@ -21,7 +20,6 @@ const createNotification = async ({
       title,
       message,
       type,
-      channel,
       metadata,
     },
   });
