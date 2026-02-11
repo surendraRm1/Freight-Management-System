@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 const logger = require('../utils/logger');
 
 const SENSITIVE_FIELDS = [
@@ -43,7 +43,7 @@ const sanitize = (obj) => {
 };
 
 const requestLogger = (req, res, next) => {
-    const correlationId = req.headers['x-correlation-id'] || uuidv4();
+    const correlationId = req.headers['x-correlation-id'] || randomUUID();
     req.correlationId = correlationId;
     res.setHeader('X-Correlation-ID', correlationId);
 

@@ -1,5 +1,5 @@
-const { ConsentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ConsentStatus } = require('../constants/prismaEnums');
 
 const normalizeIpList = (ips = []) =>
   Array.isArray(ips)

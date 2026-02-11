@@ -1,0 +1,23 @@
+{
+  "name": "freight-desktop",
+  "version": "0.1.0",
+  "description": "Electron shell for the Freight Management System",
+  "author": "Surendra",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development electron .",
+    "start": "cross-env NODE_ENV=production electron .",
+    "build:frontend": "cd ../frontend && npm run build",
+    "build:desktop": "npm run build:frontend && cd ../backend && npx prisma generate --schema prisma/schema.sqlite.prisma && cd ../desktop && cross-env NODE_ENV=production electron-builder -c electron-builder.yml",
+    "lint": "echo \"No lint configured for desktop shell\""
+  },
+  "dependencies": {
+    "bonjour-service": "^1.2.1"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^31.2.0",
+    "electron-builder": "^25.1.7"
+  }
+}

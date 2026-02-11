@@ -3,6 +3,7 @@ import { FileText, RotateCcw, Download, Save, Loader2, X } from 'lucide-react';
 import MessageBox from '../../components/ui/MessageBox';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
+import useSyncMutation from '../../hooks/useSyncMutation';
 import RateCardForm from './RateCardForm';
 import RateCardList from './RateCardList';
 
@@ -47,6 +48,7 @@ const defaultVendorForm = () => ({
 
 const AgreementManagementPage = () => {
   const { api, user } = useAuth();
+  const mutate = useSyncMutation();
 
   const [agreements, setAgreements] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -294,12 +296,30 @@ const AgreementManagementPage = () => {
         isActive: vendorForm.isActive,
       };
 
-      const { data } = await api.post('/admin/vendors', payload);
-      await loadVendors();
-      setAgreementForm((prev) => ({ ...prev, vendorId: String(data.vendor.id) }));
-      setFilterVendor(String(data.vendor.id));
-      showToast('Transporter created successfully.', 'success');
-      setVendorDialogOpen(false);
+      const { response, error, queued } = await mutate({
+        request: (apiClient) => apiClient.post('/admin/vendors', payload),
+        queue: {
+          entityType: 'vendors',
+          action: 'CREATE',
+          payload,
+        },
+      });
+
+      if (error) throw error;
+
+      if (queued) {
+        showToast('Transporter creation queued (offline).', 'info');
+        setVendorDialogOpen(false);
+        return;
+      }
+
+      if (response?.data) {
+        await loadVendors();
+        setAgreementForm((prev) => ({ ...prev, vendorId: String(response.data.vendor.id) }));
+        setFilterVendor(String(response.data.vendor.id));
+        showToast('Transporter created successfully.', 'success');
+        setVendorDialogOpen(false);
+      }
     } catch (error) {
       console.error(error);
       showToast(error.response?.data?.error || 'Failed to create transporter.', 'error');
@@ -560,17 +580,32 @@ const AgreementManagementPage = () => {
     setSaving(true);
     try {
       const payload = serializeAgreementPayload();
+      const isEdit = !!agreementForm.id;
 
-      if (agreementForm.id) {
-        await api.put(`/admin/agreements/${agreementForm.id}`, payload);
-        showToast('Agreement updated successfully.', 'success');
-      } else {
-        await api.post('/admin/agreements', payload);
-        showToast('Agreement created successfully.', 'success');
+      const { response, error, queued } = await mutate({
+        request: (apiClient) =>
+          isEdit
+            ? apiClient.put(`/admin/agreements/${agreementForm.id}`, payload)
+            : apiClient.post('/admin/agreements', payload),
+        queue: {
+          entityType: 'agreements',
+          action: isEdit ? 'UPDATE' : 'CREATE',
+          payload,
+          entityId: isEdit ? agreementForm.id : undefined,
+        },
+      });
+
+      if (error) throw error;
+
+      if (queued) {
+        showToast(`Agreement ${isEdit ? 'update' : 'creation'} queued (offline).`, 'info');
+        handleResetForm();
+        return;
       }
 
+      showToast(`Agreement ${isEdit ? 'updated' : 'created'} successfully.`, 'success');
       await loadAgreements();
-      await loadVendors(); // Re-fetch vendors in case a new one was just approved/created
+      await loadVendors();
       handleResetForm();
     } catch (error) {
       console.error(error);
@@ -588,11 +623,27 @@ const AgreementManagementPage = () => {
     if (!confirmation) return;
 
     try {
-      await api.delete(`/admin/agreements/${agreementId}`);
+      const { response, error, queued } = await mutate({
+        request: (apiClient) => apiClient.delete(`/admin/agreements/${agreementId}`),
+        queue: {
+          entityType: 'agreements',
+          action: 'DELETE',
+          entityId: agreementId,
+          payload: { id: agreementId }
+        },
+      });
+
+      if (error) throw error;
+
+      if (queued) {
+        showToast('Agreement deletion queued (offline).', 'info');
+        return;
+      }
+
       showToast('Agreement deleted successfully.', 'success');
       await loadAgreements();
       if (agreementForm.id === agreementId) {
-        handleResetForm(); // This function is defined in the parent
+        handleResetForm();
       }
     } catch (error) {
       console.error(error);
@@ -842,11 +893,10 @@ const AgreementManagementPage = () => {
                 {filteredAgreements.map((agreement) => (
                   <div
                     key={agreement.id}
-                    className={`rounded-2xl border p-4 transition ${
-                      agreementForm.id === agreement.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 bg-white hover:border-blue-300'
-                    }`}
+                    className={`rounded-2xl border p-4 transition ${agreementForm.id === agreement.id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 bg-white hover:border-blue-300'
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>

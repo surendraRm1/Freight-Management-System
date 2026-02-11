@@ -3,7 +3,7 @@ const {
   QuoteResponseStatus,
   QuoteStatus,
   ShipmentStatus,
-} = require('@prisma/client');
+} = require('../constants/prismaEnums');
 
 const ROLE_PERMISSIONS = {
   super_admin: ['get_shipments', 'get_quotes', 'get_assignments', 'update_shipment', 'help'],

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, CloudUpload, Loader2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import useSyncMutation from '../../hooks/useSyncMutation';
 
 const formatStatus = (value) =>
   String(value || '')
@@ -21,8 +22,21 @@ const formatDateTime = (value) => {
   });
 };
 
+const fileToBase64 = async (file) => {
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const chunkSize = 0x8000;
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return window.btoa(binary);
+};
+
 const KycUploadPage = () => {
   const { api } = useAuth();
+  const runSyncMutation = useSyncMutation();
 
   const [pendingShipments, setPendingShipments] = useState([]);
   const [selectedShipmentId, setSelectedShipmentId] = useState('');
@@ -109,17 +123,58 @@ const KycUploadPage = () => {
 
     try {
       setUploading(true);
-      await api.post(endpoint, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      const fileBase64 = await fileToBase64(file);
+
+      const result = await runSyncMutation({
+        request: (client) =>
+          client.post(endpoint, (() => {
+            const fd = new FormData();
+            fd.append('shipmentId', selectedShipmentId);
+            fd.append('document', file);
+            if (documentType === 'lr') {
+              fd.append('lrNumber', lrNumber.trim());
+              if (lrDate) {
+                fd.append('issuedAt', lrDate);
+              }
+            }
+            return fd;
+          })(), {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          }),
+        queue: {
+          entityType: 'COMPLIANCE_DOCUMENT',
+          action:
+            documentType === 'vehicle'
+              ? 'UPLOAD_VEHICLE_KYC'
+              : documentType === 'lr'
+                ? 'UPLOAD_LORRY_RECEIPT'
+                : 'UPLOAD_DRIVER_KYC',
+          payload: {
+            shipmentId: selectedShipmentId,
+            documentType,
+            fileName: file.name,
+            mimeType: file.type,
+            fileBase64,
+            lrNumber: documentType === 'lr' ? lrNumber.trim() : undefined,
+            issuedAt: documentType === 'lr' ? lrDate || undefined : undefined,
+          },
+        },
       });
-      setSuccessMessage('Document uploaded successfully.');
+
+      setSuccessMessage(
+        result.queued
+          ? 'Offline: upload queued and will sync automatically.'
+          : 'Document uploaded successfully.',
+      );
       setFile(null);
       setSelectedShipmentId('');
       setLrNumber('');
       setLrDate('');
-      await loadPendingShipments();
+      if (!result.queued) {
+        await loadPendingShipments();
+      }
     } catch (err) {
-      setErrorMessage(err.response?.data?.error || 'Failed to upload compliance document.');
+      setErrorMessage(err.response?.data?.error || err.message || 'Failed to upload compliance document.');
     } finally {
       setUploading(false);
     }

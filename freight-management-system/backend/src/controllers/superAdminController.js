@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { Role } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { Role } = require('../constants/prismaEnums');
 
 const createCompany = async (req, res) => {
   const { name, billingEmail, plan = 'standard', subscriptionStatus = 'active', settings, admin } = req.body || {};

@@ -1,8 +1,9 @@
 const shipmentRepository = require('../repositories/shipmentRepository');
 const AppError = require('../utils/AppError');
-const { ShipmentStatus } = require('@prisma/client');
 const { redisClient, isRedisReady } = require('../utils/redisClient');
 const logger = require('../utils/logger');
+const syncQueueService = require('./syncQueueService');
+const { ShipmentStatus } = require('../constants/prismaEnums');
 
 const CACHE_TTL = 3600; // 1 hour
 const buildCacheKey = (companyId) => `shipments:company:${companyId}:v2`;
@@ -72,6 +73,13 @@ class ShipmentService {
                 logger.error('Failed to invalidate cache', err);
             }
         }
+
+        await syncQueueService.enqueue({
+            entityType: 'SHIPMENT',
+            entityId: newShipment.id,
+            action: 'CREATE_SHIPMENT',
+            payload: shipmentData,
+        });
 
         return newShipment;
     }
@@ -147,6 +155,13 @@ class ShipmentService {
                     deliveryTime: new Date(),
                 }
             );
+
+            await syncQueueService.enqueue({
+                entityType: 'SHIPMENT',
+                entityId: updatedShipment.id,
+                action: 'UPLOAD_POD',
+                payload: { shipmentId, podUrl, podNotes },
+            });
 
             // Invalidate cache
             if (isRedisReady()) {

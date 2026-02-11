@@ -1,7 +1,3 @@
-const {
-  DocumentType,
-  ComplianceStatus,
-} = require('@prisma/client');
 const logger = require('../utils/logger');
 const {
   gstService,
@@ -11,8 +7,10 @@ const {
   kycService,
 } = require('../services/compliance');
 const { notifyKycRejection } = require('../services/compliance/complianceNotifier');
+const syncQueueService = require('../services/syncQueueService');
 
 const prisma = require('../lib/prisma');
+const { DocumentType, ComplianceStatus } = require('../constants/prismaEnums');
 
 const safeDateIso = (value) => {
   if (!value) {
@@ -131,6 +129,17 @@ const generateGstInvoice = async (req, res) => {
     });
 
     logger.info(`GST invoice document created for shipment ${shipmentId}`);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'CREATE_GST_INVOICE',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+      },
+    });
+
     return res.status(201).json({ document });
   } catch (error) {
     logger.error('Generate GST invoice error', error);
@@ -156,6 +165,16 @@ const generateRcmSelfInvoice = async (req, res) => {
     }
     await recomputeShipmentComplianceStatus(shipmentId);
 
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'CREATE_RCM_INVOICE',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+      },
+    });
+
     return res.status(201).json({ document });
   } catch (error) {
     logger.error('Generate RCM self invoice error', error);
@@ -176,6 +195,17 @@ const createEwayBill = async (req, res) => {
 
     const document = await ewayService.createEwayBill(shipmentId);
     await recomputeShipmentComplianceStatus(shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'CREATE_EWAY_BILL',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+      },
+    });
+
     return res.status(201).json({ document });
   } catch (error) {
     logger.error('Create e-way bill error', error);
@@ -196,6 +226,14 @@ const extendEwayBill = async (req, res) => {
 
     const updated = await ewayService.extendEwayBill(documentId);
     await recomputeShipmentComplianceStatus(updated.shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: documentId,
+      action: 'EXTEND_EWAY_BILL',
+      payload: { documentId },
+    });
+
     return res.json({ document: updated });
   } catch (error) {
     logger.error('Extend e-way bill error', error);
@@ -216,6 +254,14 @@ const cancelEwayBill = async (req, res) => {
 
     const updated = await ewayService.cancelEwayBill(documentId);
     await recomputeShipmentComplianceStatus(updated.shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: documentId,
+      action: 'CANCEL_EWAY_BILL',
+      payload: { documentId },
+    });
+
     return res.json({ document: updated });
   } catch (error) {
     logger.error('Cancel e-way bill error', error);
@@ -256,6 +302,17 @@ const uploadDriverKyc = async (req, res) => {
 
     await recomputeShipmentComplianceStatus(shipmentId);
 
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'UPLOAD_DRIVER_KYC',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+        fileName,
+      },
+    });
+
     return res.status(201).json({ document });
   } catch (error) {
     logger.error('Upload driver KYC error', error);
@@ -295,6 +352,17 @@ const uploadVehicleKyc = async (req, res) => {
     });
 
     await recomputeShipmentComplianceStatus(shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'UPLOAD_VEHICLE_KYC',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+        fileName,
+      },
+    });
 
     return res.status(201).json({ document });
   } catch (error) {
@@ -337,6 +405,17 @@ const uploadLorryReceipt = async (req, res) => {
     });
 
     await recomputeShipmentComplianceStatus(shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: document.id,
+      action: 'UPLOAD_LORRY_RECEIPT',
+      payload: {
+        documentId: document.id,
+        shipmentId,
+        fileName,
+      },
+    });
 
     return res.status(201).json({ document });
   } catch (error) {
@@ -388,6 +467,16 @@ const rejectComplianceDocument = async (req, res) => {
     await recomputeShipmentComplianceStatus(document.shipmentId);
     await notifyKycRejection({ documentId, reason });
 
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: documentId,
+      action: 'REJECT_KYC_DOCUMENT',
+      payload: {
+        documentId,
+        reason,
+      },
+    });
+
     return res.json({ document: updated });
   } catch (error) {
     logger.error('Reject compliance document error', error);
@@ -424,6 +513,13 @@ const approveComplianceDocument = async (req, res) => {
 
     const updated = await kycService.approveKycDocument(documentId, req.user.id);
     await recomputeShipmentComplianceStatus(document.shipmentId);
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPLIANCE_DOCUMENT',
+      entityId: documentId,
+      action: 'APPROVE_KYC_DOCUMENT',
+      payload: { documentId },
+    });
 
     return res.json({ document: updated });
   } catch (error) {

@@ -1,14 +1,15 @@
-const {
-  PaymentStatus,
-  InvoiceStatus,
-  DocumentType,
-  ComplianceStatus,
-} = require('@prisma/client');
 const logger = require('../utils/logger');
 const paymentGateway = require('../services/paymentGateway');
 const { createInvoiceDraft } = require('../services/invoiceService');
 const { gstService, rcmService, tdsService } = require('../services/compliance');
 const prisma = require('../lib/prisma');
+const syncQueueService = require('../services/syncQueueService');
+const {
+  PaymentStatus,
+  InvoiceStatus,
+  DocumentType,
+  ComplianceStatus,
+} = require('../constants/prismaEnums');
 const DEFAULT_DUE_DAYS = parseInt(process.env.INVOICE_DUE_IN_DAYS || '7', 10);
 
 const parseDueInDays = (value) => {
@@ -270,6 +271,19 @@ const createPayment = async (req, res) => {
       return hydratedPayment;
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'PAYMENT',
+      entityId: result.id,
+      action: 'CREATE_PAYMENT',
+      payload: {
+        paymentId: result.id,
+        shipmentId: parsedShipmentId,
+        amount: chargeAmount,
+        currency,
+        metadata,
+      },
+    });
+
     logger.info(
       `Payment initiated for shipment ${shipment.id} status=${paymentStatus} amount=${chargeAmount}`,
     );
@@ -386,6 +400,18 @@ const confirmPayment = async (req, res) => {
     }
 
     logger.info(`Payment ${payment.id} confirmed with status ${nextStatus}`);
+    await syncQueueService.enqueue({
+      entityType: 'PAYMENT',
+      entityId: confirmed.id,
+      action: 'CONFIRM_PAYMENT',
+      payload: {
+        paymentId,
+        status: nextStatus,
+        failureReason,
+        transactionRef,
+      },
+    });
+
     return res.json({ payment: serializePayment(confirmed) });
   } catch (error) {
     logger.error('Confirm payment error', error);
@@ -463,6 +489,17 @@ const capturePayment = async (req, res) => {
 
       await handlePostCaptureCompliance(payment.shipmentId);
     }
+
+    await syncQueueService.enqueue({
+      entityType: 'PAYMENT',
+      entityId: updated.id,
+      action: 'CAPTURE_PAYMENT',
+      payload: {
+        paymentId,
+        status: nextStatus,
+        captureSuccess: captureResponse.success,
+      },
+    });
 
     logger.info(`Payment ${payment.id} capture processed status=${nextStatus}`);
     return res.json({ payment: serializePayment(updated) });

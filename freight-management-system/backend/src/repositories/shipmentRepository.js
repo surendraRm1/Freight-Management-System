@@ -1,5 +1,5 @@
-const { ShipmentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ShipmentStatus } = require('../constants/prismaEnums');
 
 class ShipmentRepository {
     async create(data) {

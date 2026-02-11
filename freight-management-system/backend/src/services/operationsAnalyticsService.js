@@ -1,5 +1,10 @@
-const { ShipmentStatus, ComplianceStatus, QuoteStatus, QuoteResponseStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const {
+  ShipmentStatus,
+  ComplianceStatus,
+  QuoteStatus,
+  QuoteResponseStatus,
+} = require('../constants/prismaEnums');
 
 const ACTIVE_BOARD_STATUSES = [ShipmentStatus.PENDING, ShipmentStatus.ASSIGNED, ShipmentStatus.IN_TRANSIT];
 const COMPLETED_STATUS = [ShipmentStatus.DELIVERED];

@@ -1,11 +1,3 @@
-const {
-  QuoteStatus,
-  QuoteResponseStatus,
-  ShipmentStatus,
-  ConsentStatus,
-  BookingStatus,
-  ConsentSource,
-} = require('@prisma/client');
 const logger = require('../utils/logger');
 const {
   sendQuoteRequestInvitationEmail,
@@ -14,6 +6,15 @@ const {
 } = require('../services/emailService');
 const { sendSMS } = require('../services/smsService');
 const prisma = require('../lib/prisma');
+const syncQueueService = require('../services/syncQueueService');
+const {
+  QuoteStatus,
+  QuoteResponseStatus,
+  ShipmentStatus,
+  ConsentStatus,
+  BookingStatus,
+  ConsentSource,
+} = require('../constants/prismaEnums');
 const CONSENT_SLA_MINUTES = parseInt(process.env.CONSENT_SLA_MINUTES || '120', 10);
 
 const includeQuoteResponseMeta = {
@@ -140,6 +141,21 @@ const createQuoteRequest = async (req, res) => {
         },
       },
       include: includeQuoteResponseMeta,
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'QUOTE_REQUEST',
+      entityId: quoteRequest.id,
+      action: 'CREATE_QUOTE_REQUEST',
+      payload: {
+        fromLocation,
+        toLocation,
+        weight: parseFloat(weight),
+        shipmentType,
+        urgency,
+        vendorIds: uniqueVendorIds,
+        createdByUserId: req.user.id,
+      },
     });
 
     const emailTasks = vendors
@@ -376,6 +392,17 @@ const approveQuoteResponse = async (req, res) => {
       });
 
       return { updatedResponse, updatedRequest: refreshedRequest, shipment };
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'QUOTE_REQUEST',
+      entityId: quoteRequest.id,
+      action: 'APPROVE_QUOTE_RESPONSE',
+      payload: {
+        quoteRequestId: quoteRequest.id,
+        responseId,
+        shipmentId: result.shipment.id,
+      },
     });
 
     const transporterUsers = await prisma.user.findMany({

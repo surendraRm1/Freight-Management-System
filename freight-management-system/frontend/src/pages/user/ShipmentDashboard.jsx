@@ -12,6 +12,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import useSyncMutation from '../../hooks/useSyncMutation';
 import StatCard from '../../components/ui/StatCard';
 import { ShipmentList } from '../../components/ShipmentList';
 import { FinanceDashboard } from '../../components/FinanceDashboard';
@@ -289,6 +290,7 @@ ROLE_DASHBOARD_CONFIG.DEFAULT = ROLE_DASHBOARD_CONFIG.USER;
 
 const ShipmentDashboard = () => {
   const { api, user } = useAuth();
+  const runSyncMutation = useSyncMutation();
   const normalizedRole = (user?.role || 'USER').toUpperCase();
   const roleConfig = ROLE_DASHBOARD_CONFIG[normalizedRole] || ROLE_DASHBOARD_CONFIG.DEFAULT;
   const { hero: heroConfig, sections, notice } = roleConfig;
@@ -414,26 +416,36 @@ const ShipmentDashboard = () => {
           amount: shipment.invoice?.grandTotal ?? shipment.cost ?? undefined,
           currency: 'INR',
         };
-        const response = await api.post('/payments', payload);
-        const payment = response.data?.payment;
-        setBillingToast({
-          tone: 'success',
-          message:
-            payment?.status === 'PAID'
-              ? 'Payment captured successfully.'
-              : 'Payment initiated successfully. We will notify you once it is confirmed.',
+
+        const result = await runSyncMutation({
+          request: (client) => client.post('/payments', payload),
+          queue: {
+            entityType: 'PAYMENT',
+            action: 'CREATE_PAYMENT',
+            payload,
+          },
         });
-        await loadShipments();
+
+        setBillingToast({
+          tone: result.queued ? 'warning' : 'success',
+          message: result.queued
+            ? 'Offline: payment initiation queued and will sync automatically.'
+            : 'Payment initiated successfully. We will notify you once it is confirmed.',
+        });
+
+        if (!result.queued) {
+          await loadShipments();
+        }
       } catch (err) {
         setBillingToast({
           tone: 'error',
-          message: err.response?.data?.error || 'Failed to initiate payment.',
+          message: err.response?.data?.error || err.message || 'Failed to initiate payment.',
         });
       } finally {
         setPaymentSubmitting((prev) => ({ ...prev, [shipment.id]: false }));
       }
     },
-    [api, loadShipments],
+    [loadShipments, runSyncMutation],
   );
 
   const heroGradient = heroConfig?.gradient || 'from-blue-600 via-indigo-600 to-purple-600';

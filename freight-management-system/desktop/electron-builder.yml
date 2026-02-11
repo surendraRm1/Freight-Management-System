@@ -1,0 +1,50 @@
+appId: com.freight.desktop
+productName: Freight Management Desktop
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - '**/*'
+  - '!dist{,/**}'
+  - '!dist-manual{,/**}'
+  - '!tmp{,/**}'
+  - '!**/*.ts'
+  - '!*.map'
+asar: true
+asarUnpack:
+  - node_modules/**/*
+extraResources:
+  - from: ../backend
+    to: backend
+    filter:
+      - '**/*'
+      - '!**/*.ts'
+      - '!**/*.tsx'
+  - from: ../frontend/dist
+    to: frontend
+    filter:
+      - '**/*'
+  - from: ../../python-tools/dist/shared_db_manager.exe
+    to: tools/shared_db_manager.exe
+win:
+  target:
+    - nsis
+    - msi
+  artifactName: Freight-Management-Desktop-${version}-Setup.${ext}
+  requestedExecutionLevel: requireAdministrator
+  icon: build/app-icon.ico
+nsis:
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  runAfterFinish: true
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: true
+  shortcutName: Freight Management Desktop
+  include: build/postinstall.nsh
+msi:
+  oneClick: false
+  perMachine: true
+extraMetadata:
+  freight:
+    dataDir: '%PROGRAMDATA%/FreightManagement/Data'

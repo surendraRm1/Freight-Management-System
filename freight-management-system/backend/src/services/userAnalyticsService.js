@@ -1,5 +1,5 @@
-const { ShipmentStatus, ComplianceStatus, QuoteStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ShipmentStatus, ComplianceStatus, QuoteStatus } = require('../constants/prismaEnums');
 
 const getUserOverview = async (userId) => {
   const now = new Date();

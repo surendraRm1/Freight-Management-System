@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const syncQueueService = require('../services/syncQueueService');
 
 const ensureCompany = (req, res) => {
   if (!req.user?.companyId) {
@@ -87,6 +88,20 @@ const createInvoice = async (req, res) => {
       },
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'TRANSPORTER_INVOICE',
+      entityId: invoice.id,
+      action: 'CREATE_INVOICE',
+      payload: {
+        shipmentId: payload.shipmentId,
+        invoiceNumber: payload.invoiceNumber,
+        invoiceDate: payload.invoiceDate,
+        invoiceAmount: payload.invoiceAmount,
+        invoiceUrl: payload.invoiceUrl,
+        companyId,
+      },
+    });
+
     return res.status(201).json(serializeInvoice(invoice));
   } catch (error) {
     console.error('Failed to create invoice', error);
@@ -170,6 +185,16 @@ const approveInvoice = async (req, res) => {
       },
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'TRANSPORTER_INVOICE',
+      entityId: updated.id,
+      action: 'APPROVE_INVOICE',
+      payload: {
+        invoiceId: updated.id,
+        approvedById: req.user.id,
+      },
+    });
+
     return res.status(200).json(serializeInvoice(updated));
   } catch (error) {
     console.error('Failed to approve invoice', error);
@@ -207,6 +232,17 @@ const rejectInvoice = async (req, res) => {
             user: { select: { name: true, email: true } },
           },
         },
+      },
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'TRANSPORTER_INVOICE',
+      entityId: updated.id,
+      action: 'REJECT_INVOICE',
+      payload: {
+        invoiceId: updated.id,
+        notes,
+        reviewerId: req.user.id,
       },
     });
 

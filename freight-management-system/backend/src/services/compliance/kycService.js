@@ -1,11 +1,9 @@
-const {
-  ComplianceStatus,
-} = require('@prisma/client');
 const path = require('path');
 const fs = require('fs/promises');
 const crypto = require('crypto');
 const logger = require('../../utils/logger');
 const prisma = require('../../lib/prisma');
+const { ComplianceStatus } = require('../../constants/prismaEnums');
 const uploadsDir = path.resolve(process.cwd(), '..', 'uploads');
 
 const ensureUploadsDir = async () => {

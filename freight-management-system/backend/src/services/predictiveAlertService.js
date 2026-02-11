@@ -1,5 +1,5 @@
-const { ShipmentStatus, QuoteStatus, ComplianceStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ShipmentStatus, QuoteStatus, ComplianceStatus } = require('../constants/prismaEnums');
 
 const getPredictiveAlerts = async (companyId) => {
   const now = new Date();

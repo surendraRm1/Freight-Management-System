@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import useSyncMutation from '../hooks/useSyncMutation';
 
 export const CompanyUserManagement = () => {
-  const { token } = useAuth();
+  const { api } = useAuth();
+  const runSyncMutation = useSyncMutation();
   const [users, setUsers] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [form, setForm] = useState({ email: '', password: '', role: 'USER', name: '', vendorId: '' });
@@ -13,35 +15,23 @@ export const CompanyUserManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/v1/admin/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to load users');
-      }
-      const data = await response.json();
+      const { data } = await api.get('/admin/users');
       const nextUsers = Array.isArray(data) ? data : data?.users || [];
       setUsers(nextUsers);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message || 'Failed to load users');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [api]);
 
   useEffect(() => {
-    if (token) fetchUsers();
-  }, [token, fetchUsers]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   const fetchVendors = useCallback(async () => {
-    if (!token) return;
     try {
-      const response = await fetch('/api/v1/admin/vendors', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to load vendors');
-      const data = await response.json();
+      const { data } = await api.get('/admin/vendors');
       const vendorList = Array.isArray(data)
         ? data
         : Array.isArray(data?.vendors)
@@ -51,7 +41,7 @@ export const CompanyUserManagement = () => {
     } catch (err) {
       console.warn('Failed to load vendors', err);
     }
-  }, [token]);
+  }, [api]);
 
   useEffect(() => {
     fetchVendors();
@@ -68,22 +58,22 @@ export const CompanyUserManagement = () => {
         throw new Error('Select a vendor for transporter users.');
       }
 
-      const response = await fetch('/api/v1/admin/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const { queued } = await runSyncMutation({
+        request: (client) => client.post('/admin/users', payload),
+        queue: {
+          entityType: 'COMPANY_USER',
+          action: 'CREATE_COMPANY_USER',
+          payload,
         },
-        body: JSON.stringify(payload),
       });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to create user');
-      }
       setForm({ email: '', password: '', role: 'USER', name: '', vendorId: '' });
-      fetchUsers();
+      if (!queued) {
+        fetchUsers();
+      } else {
+        setError('Offline: user creation queued and will sync automatically.');
+      }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     }
   };
 

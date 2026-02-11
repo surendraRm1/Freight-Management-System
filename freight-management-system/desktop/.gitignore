@@ -1,0 +1,7 @@
+dist/
+dist-manual/
+node_modules/
+tmp/
+*.blockmap
+builder-debug.yml
+builder-effective-config.yaml

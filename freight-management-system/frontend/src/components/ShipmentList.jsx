@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import useSyncMutation from '../hooks/useSyncMutation';
 
 export const ShipmentList = () => {
-  const { user, token } = useAuth();
+  const { user, api } = useAuth();
+  const runSyncMutation = useSyncMutation();
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,50 +17,40 @@ export const ShipmentList = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/v1/shipments', {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to load shipments');
-        }
-        const data = await response.json();
+        const { data } = await api.get('/shipments');
         setShipments(data);
       } catch (err) {
-        setError(err.message);
+        setError(err.response?.data?.error || err.message || 'Failed to load shipments');
       } finally {
         setLoading(false);
       }
     };
 
-    if (token) {
-      fetchShipments();
-    }
-  }, [token]);
+    fetchShipments();
+  }, [api]);
 
   const handleUploadPod = async (shipmentId) => {
     const podUrl = window.prompt('Enter POD URL');
     if (!podUrl) return;
     try {
-      const response = await fetch(`/api/v1/shipments/${shipmentId}/pod`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const { queued } = await runSyncMutation({
+        request: (client) => client.put(`/shipments/${shipmentId}/pod`, { podUrl }),
+        queue: {
+          entityType: 'SHIPMENT',
+          entityId: shipmentId,
+          action: 'UPLOAD_POD',
+          payload: { shipmentId, podUrl },
         },
-        body: JSON.stringify({ pod_url: podUrl }),
       });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to upload POD');
+      if (!queued) {
+        setShipments((prev) =>
+          prev.map((shipment) => (shipment.id === shipmentId ? { ...shipment, pod_status: 'Collected' } : shipment)),
+        );
+      } else {
+        alert('Offline: POD upload queued and will sync automatically.');
       }
-      setShipments((prev) =>
-        prev.map((shipment) => (shipment.id === shipmentId ? { ...shipment, pod_status: 'Collected' } : shipment)),
-      );
     } catch (err) {
-      alert(err.message);
+      alert(err.response?.data?.error || err.message);
     }
   };
 

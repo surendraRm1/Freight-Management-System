@@ -34,4 +34,26 @@ router.delete('/vendors/:id', adminController.deleteVendor);
 
 router.get('/analytics', analyticsController.getAnalytics);
 
+// Storage Configuration
+const storageService = require('../services/storageService');
+
+router.get('/storage-config', (req, res) => {
+    res.json({
+        storageRoot: storageService.localRoot,
+        provider: storageService.provider
+    });
+});
+
+router.post('/storage-config', (req, res) => {
+    const { path: newPath } = req.body;
+    if (!newPath) return res.status(400).json({ error: 'Path is required' });
+
+    try {
+        storageService.updateStoragePath(newPath);
+        res.json({ message: 'Storage path updated successfully', newPath: storageService.localRoot });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;

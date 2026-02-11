@@ -1,5 +1,5 @@
-const { ComplianceStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ComplianceStatus } = require('../constants/prismaEnums');
 
 const getComplianceOverview = async (companyId) => {
   const now = new Date();

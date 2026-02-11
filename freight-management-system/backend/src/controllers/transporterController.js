@@ -1,14 +1,15 @@
+const logger = require('../utils/logger');
+const { notifyUserWithEmail, formatDateTime } = require('../services/notificationService');
+const prisma = require('../lib/prisma');
+const transporterAnalyticsService = require('../services/transporterAnalyticsService');
+const syncQueueService = require('../services/syncQueueService');
 const {
   QuoteResponseStatus,
   QuoteStatus,
   ShipmentStatus,
   BookingStatus,
   ConsentStatus,
-} = require('@prisma/client');
-const logger = require('../utils/logger');
-const { notifyUserWithEmail, formatDateTime } = require('../services/notificationService');
-const prisma = require('../lib/prisma');
-const transporterAnalyticsService = require('../services/transporterAnalyticsService');
+} = require('../constants/prismaEnums');
 
 const hasTransporterPrivileges = (user = {}) =>
   user.role === 'ADMIN' || user.role === 'COMPANY_ADMIN';
@@ -206,6 +207,20 @@ const respondToQuoteRequest = async (req, res) => {
       });
 
       return { updatedResponse };
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'QUOTE_RESPONSE',
+      entityId: responseId,
+      action: action === 'DECLINE' ? 'DECLINE_QUOTE_RESPONSE' : 'RESPOND_QUOTE_RESPONSE',
+      payload: {
+        responseId,
+        quoteRequestId: responseRecord.quoteRequestId,
+        action,
+        quotedPrice: updatePayload.quotedPrice ?? null,
+        estimatedDelivery: updatePayload.estimatedDelivery ?? null,
+        transporterNotes,
+      },
     });
 
     const requester = responseRecord.quoteRequest.createdBy;
@@ -438,6 +453,17 @@ const respondToAssignment = async (req, res) => {
       },
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'SHIPMENT',
+      entityId: shipmentId,
+      action: action === 'ACCEPT' ? 'ACCEPT_ASSIGNMENT' : 'REJECT_ASSIGNMENT',
+      payload: {
+        shipmentId,
+        action,
+        notes,
+      },
+    });
+
     return res.json({ shipment: updatedShipment });
   } catch (error) {
     const status = error.status || 500;
@@ -557,6 +583,18 @@ const updateDriverInfo = async (req, res) => {
       `,
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'SHIPMENT',
+      entityId: shipmentId,
+      action: 'UPDATE_DRIVER_INFO',
+      payload: {
+        shipmentId,
+        driverName,
+        driverPhone,
+        driverEta,
+      },
+    });
+
     return res.json({ shipment: updated });
   } catch (error) {
     const status = error.status || 500;
@@ -652,6 +690,18 @@ const updateDriverLocation = async (req, res) => {
       },
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'SHIPMENT',
+      entityId: shipmentId,
+      action: 'UPDATE_DRIVER_LOCATION',
+      payload: {
+        shipmentId,
+        latitude: lat,
+        longitude: lng,
+        eta: eta || null,
+      },
+    });
+
     return res.json({ shipment: updated });
   } catch (error) {
     const status = error.status || 500;
@@ -723,6 +773,16 @@ const createDriver = async (req, res) => {
         isActive: isActive === undefined ? true : Boolean(isActive),
       },
       select: driverSelectFields,
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'DRIVER',
+      entityId: driver.id,
+      action: 'CREATE_DRIVER',
+      payload: {
+        vendorId,
+        driver,
+      },
     });
 
     return res.status(201).json({ driver });
@@ -798,6 +858,16 @@ const updateDriver = async (req, res) => {
       select: driverSelectFields,
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'DRIVER',
+      entityId: driver.id,
+      action: 'UPDATE_DRIVER',
+      payload: {
+        driverId,
+        changes: updateData,
+      },
+    });
+
     return res.json({ driver });
   } catch (error) {
     logger.error('Update driver error:', error);
@@ -835,6 +905,13 @@ const deleteDriver = async (req, res) => {
       where: { id: driverId },
       data: { isActive: false },
       select: driverSelectFields,
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'DRIVER',
+      entityId: driver.id,
+      action: 'ARCHIVE_DRIVER',
+      payload: { driverId },
     });
 
     return res.json({ driver });

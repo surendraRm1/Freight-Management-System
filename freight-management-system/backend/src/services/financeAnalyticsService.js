@@ -1,5 +1,5 @@
-const { InvoiceStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { InvoiceStatus } = require('../constants/prismaEnums');
 
 const getFinanceOverview = async (companyId) => {
   const now = new Date();

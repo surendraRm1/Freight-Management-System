@@ -1,9 +1,10 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { Role } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const { sendTransporterInviteEmail } = require('../services/emailService');
 const logger = require('../utils/logger');
+const syncQueueService = require('../services/syncQueueService');
+const { Role } = require('../constants/prismaEnums');
 
 const ensureCompany = (req, res) => {
   if (!req.user?.companyId) {
@@ -56,6 +57,17 @@ const createCompanyUser = async (req, res) => {
         role: true,
         name: true,
         vendorId: true,
+      },
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPANY_USER',
+      entityId: user.id,
+      action: 'CREATE_COMPANY_USER',
+      payload: {
+        userId: user.id,
+        role,
+        vendorId: data.vendorId || null,
       },
     });
 
@@ -373,6 +385,16 @@ const updateCompanyUser = async (req, res) => {
       },
     });
 
+    await syncQueueService.enqueue({
+      entityType: 'COMPANY_USER',
+      entityId: updated.id,
+      action: 'UPDATE_COMPANY_USER',
+      payload: {
+        userId: updated.id,
+        changes: dataPatch,
+      },
+    });
+
     return res.json({ user: updated });
   } catch (error) {
     console.error('Failed to update company user', error);
@@ -399,6 +421,13 @@ const resetCompanyUserPassword = async (req, res) => {
     await prisma.user.update({
       where: { id: userId, companyId },
       data: { passwordHash },
+    });
+
+    await syncQueueService.enqueue({
+      entityType: 'COMPANY_USER',
+      entityId: userId,
+      action: 'RESET_USER_PASSWORD',
+      payload: { userId },
     });
 
     return res.json({
@@ -626,6 +655,23 @@ const createCompanyVendor = async (req, res) => {
       });
     }
 
+    await syncQueueService.enqueue({
+      entityType: 'VENDOR',
+      entityId: vendor.id,
+      action: 'CREATE_VENDOR',
+      payload: {
+        vendorId: vendor.id,
+        name,
+        email: normalizedEmail,
+        phone,
+        baseRate,
+        rating,
+        speed,
+        isActive,
+        companyId,
+      },
+    });
+
     return res.status(201).json({
       vendor,
       user: transporterUser,
@@ -739,6 +785,24 @@ const updateCompanyVendor = async (req, res) => {
       }
     }
 
+    await syncQueueService.enqueue({
+      entityType: 'VENDOR',
+      entityId: vendor.id,
+      action: 'UPDATE_VENDOR',
+      payload: {
+        vendorId,
+        updates: {
+          name,
+          email: normalizedEmail,
+          phone,
+          baseRate,
+          rating,
+          speed,
+          isActive,
+        },
+      },
+    });
+
     return res.json({ vendor, user: newlyCreatedUser, loginIssued: Boolean(newlyCreatedUser) });
   } catch (error) {
     console.error('Failed to update vendor', error);
@@ -765,6 +829,12 @@ const deleteCompanyVendor = async (req, res) => {
     }
 
     await prisma.vendor.delete({ where: { id: vendorId } });
+    await syncQueueService.enqueue({
+      entityType: 'VENDOR',
+      entityId: vendorId,
+      action: 'DELETE_VENDOR',
+      payload: { vendorId },
+    });
     return res.status(204).send();
   } catch (error) {
     console.error('Failed to delete vendor', error);

@@ -1,5 +1,5 @@
-const { ShipmentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ShipmentStatus } = require('../constants/prismaEnums');
 
 const normalizeLocation = (details = {}) => {
   if (details.address) return details.address;

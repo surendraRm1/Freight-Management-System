@@ -1,9 +1,6 @@
-const {
-  ComplianceStatus,
-  DocumentType,
-} = require('@prisma/client');
 const prisma = require('../../lib/prisma');
 const logger = require('../../utils/logger');
+const { ComplianceStatus, DocumentType } = require('../../constants/prismaEnums');
 
 const isRCMApplicable = ({ vendorProfile, shipment }) => {
   if (!vendorProfile) {

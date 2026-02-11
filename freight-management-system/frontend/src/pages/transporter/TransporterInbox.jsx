@@ -13,6 +13,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import useSyncMutation from '../../hooks/useSyncMutation';
 import MessageBox from '../../components/ui/MessageBox';
 
 const formatDate = (value) => {
@@ -60,6 +61,7 @@ const formatCurrency = (value) => {
 
 const TransporterInbox = () => {
   const { api, user } = useAuth();
+  const runSyncMutation = useSyncMutation();
   const [loading, setLoading] = useState(true);
   const [quoteResponses, setQuoteResponses] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -250,42 +252,64 @@ const handleAssignmentAction = async (shipment, action) => {
   const quoteResponseId = shipment.transporterQuote?.id;
 
   setAssignmentSubmitting((prev) => ({ ...prev, [shipmentId]: true }));
-    try {
-      if (quoteResponseId) {
-        await api.post(`/quotes/responses/${quoteResponseId}/consent`, {
-          action,
-          note: notes,
-        });
-      } else {
-        await api.post(`/transporter/assignments/${shipmentId}/respond`, {
-          action: action === 'ACCEPT' ? 'ACCEPT' : 'REJECT',
-          notes,
-        });
-      }
+  try {
+    const request = quoteResponseId
+      ? (client) =>
+          client.post(`/quotes/responses/${quoteResponseId}/consent`, {
+            action,
+            note: notes,
+          })
+      : (client) =>
+          client.post(`/transporter/assignments/${shipmentId}/respond`, {
+            action: action === 'ACCEPT' ? 'ACCEPT' : 'REJECT',
+            notes,
+          });
 
+    const queuePayload = quoteResponseId
+      ? {
+          entityType: 'QUOTE_RESPONSE',
+          entityId: quoteResponseId,
+          action: action === 'ACCEPT' ? 'RESPOND_QUOTE_RESPONSE' : 'DECLINE_QUOTE_RESPONSE',
+          payload: { responseId: quoteResponseId, action, notes },
+        }
+      : {
+          entityType: 'SHIPMENT',
+          entityId: shipmentId,
+          action: action === 'ACCEPT' ? 'ACCEPT_ASSIGNMENT' : 'REJECT_ASSIGNMENT',
+          payload: { shipmentId, action, notes },
+        };
+
+    const result = await runSyncMutation({
+      request,
+      queue: queuePayload,
+    });
+
+    if (!result.queued) {
       setAssignments((prev) => prev.filter((item) => item.id !== shipmentId));
       setAssignmentNotes((prev) => {
         const next = { ...prev };
         delete next[shipmentId];
         return next;
       });
-
       await loadInbox();
+    }
 
-      setToast({
-        message:
-          action === 'ACCEPT'
+    setToast({
+      message:
+        result.queued
+          ? 'Offline: assignment response queued and will sync automatically.'
+          : action === 'ACCEPT'
             ? 'Booking confirmed. Dispatcher notified.'
             : 'Booking declined. Shipper will be alerted.',
-        tone: action === 'ACCEPT' ? 'success' : 'warning',
-      });
-    } catch (err) {
-      setToast({
-        message: err.response?.data?.error || 'Failed to update assignment.',
-        tone: 'error',
-      });
-    } finally {
-      setAssignmentSubmitting((prev) => ({ ...prev, [shipmentId]: false }));
+      tone: result.queued ? 'warning' : action === 'ACCEPT' ? 'success' : 'warning',
+    });
+  } catch (err) {
+    setToast({
+      message: err.response?.data?.error || err.message || 'Failed to update assignment.',
+      tone: 'error',
+    });
+  } finally {
+    setAssignmentSubmitting((prev) => ({ ...prev, [shipmentId]: false }));
   }
 };
 
@@ -313,7 +337,7 @@ const handleDriverInfoSubmit = async (shipment) => {
 
   setDriverSubmitting((prev) => ({ ...prev, [shipmentId]: true }));
   try {
-    await api.post(`/transporter/shipments/${shipmentId}/driver-info`, {
+    const payload = {
       driverName: form.driverName,
       driverPhone: form.driverPhone,
       driverPhotoUrl: form.driverPhotoUrl || undefined,
@@ -321,16 +345,30 @@ const handleDriverInfoSubmit = async (shipment) => {
       vehicleModel: form.vehicleModel || undefined,
       vehicleRegistration: form.vehicleRegistration,
       driverEta: form.driverEta || undefined,
+    };
+
+    const result = await runSyncMutation({
+      request: (client) => client.post(`/transporter/shipments/${shipmentId}/driver-info`, payload),
+      queue: {
+        entityType: 'SHIPMENT',
+        entityId: shipmentId,
+        action: 'UPDATE_DRIVER_INFO',
+        payload: { shipmentId, ...payload },
+      },
     });
 
     setToast({
-      message: 'Driver and vehicle details saved.',
-      tone: 'success',
+      message: result.queued
+        ? 'Offline: driver details queued and will sync automatically.'
+        : 'Driver and vehicle details saved.',
+      tone: result.queued ? 'warning' : 'success',
     });
-    await loadInbox();
+    if (!result.queued) {
+      await loadInbox();
+    }
   } catch (err) {
     setToast({
-      message: err.response?.data?.error || 'Failed to save driver details.',
+      message: err.response?.data?.error || err.message || 'Failed to save driver details.',
       tone: 'error',
     });
   } finally {
@@ -362,21 +400,35 @@ const handleLocationSubmit = async (shipment) => {
 
   setLocationSubmitting((prev) => ({ ...prev, [shipmentId]: true }));
   try {
-    await api.post(`/transporter/shipments/${shipmentId}/location`, {
+    const payload = {
       latitude: form.latitude,
       longitude: form.longitude,
       eta: form.eta || undefined,
       locationLabel: form.locationLabel || undefined,
+    };
+
+    const result = await runSyncMutation({
+      request: (client) => client.post(`/transporter/shipments/${shipmentId}/location`, payload),
+      queue: {
+        entityType: 'SHIPMENT',
+        entityId: shipmentId,
+        action: 'UPDATE_DRIVER_LOCATION',
+        payload: { shipmentId, ...payload },
+      },
     });
 
     setToast({
-      message: 'Driver location updated.',
-      tone: 'success',
+      message: result.queued
+        ? 'Offline: driver location queued and will sync automatically.'
+        : 'Driver location updated.',
+      tone: result.queued ? 'warning' : 'success',
     });
-    await loadInbox();
+    if (!result.queued) {
+      await loadInbox();
+    }
   } catch (err) {
     setToast({
-      message: err.response?.data?.error || 'Failed to update driver location.',
+      message: err.response?.data?.error || err.message || 'Failed to update driver location.',
       tone: 'error',
     });
   } finally {

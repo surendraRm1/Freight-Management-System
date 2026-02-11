@@ -8,8 +8,12 @@ import {
 } from 'react';
 import axios from 'axios';
 
-const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-const API_BASE = `${API_ROOT}/api/v1`;
+const deriveInitialRoot = () => {
+  if (typeof window !== 'undefined' && window.freightDesktop?.apiBase) {
+    return window.freightDesktop.apiBase.replace(/\/$/, '');
+  }
+  return (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+};
 const TOKEN_STORAGE_KEY = 'authToken';
 
 const getTokenStorage = () => {
@@ -57,10 +61,34 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(() => readToken());
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(token));
   const [loading, setLoading] = useState(true);
+  const [apiRoot, setApiRoot] = useState(() => deriveInitialRoot());
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.freightDesktop) {
+      return;
+    }
+    let mounted = true;
+    const hydrate = async () => {
+      try {
+        const runtimeBase =
+          (await window.freightDesktop.getApiBase?.()) ||
+          window.freightDesktop.apiBase;
+        if (runtimeBase && mounted) {
+          setApiRoot(runtimeBase.replace(/\/$/, ''));
+        }
+      } catch (error) {
+        // swallow; defaults already applied
+      }
+    };
+    hydrate();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const api = useMemo(() => {
     const instance = axios.create({
-      baseURL: API_BASE,
+      baseURL: `${apiRoot}/api/v1`,
     });
 
     instance.interceptors.request.use((config) => {
@@ -72,7 +100,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return instance;
-  }, []);
+  }, [apiRoot]);
 
   const refreshUser = useCallback(async () => {
     const response = await api.get('/auth/profile');

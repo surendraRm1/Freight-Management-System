@@ -1,5 +1,5 @@
-const { ShipmentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { ShipmentStatus } = require('../constants/prismaEnums');
 
 const ensureCompany = (req, res) => {
   if (!req.user?.companyId) {

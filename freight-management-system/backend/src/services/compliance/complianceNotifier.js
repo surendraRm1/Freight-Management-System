@@ -1,10 +1,7 @@
-const {
-  DocumentType,
-  ComplianceStatus,
-} = require('@prisma/client');
 const prisma = require('../../lib/prisma');
 const logger = require('../../utils/logger');
 const { notifyUserWithEmail, formatDateTime } = require('../notificationService');
+const { DocumentType, ComplianceStatus } = require('../../constants/prismaEnums');
 
 const minutesToMillis = (minutes) => minutes * 60 * 1000;
 

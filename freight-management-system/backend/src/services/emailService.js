@@ -4,6 +4,8 @@ const logger = require('../utils/logger');
 
 // Mockable transporter: replace with production credentials when ready.
 // Mockable transporter: replace with production credentials when ready.
+const EMAIL_DISABLED = process.env.DISABLE_EMAIL_DELIVERY === 'true';
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
   port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
@@ -16,6 +18,19 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmail = async ({ to, subject, html, text }) => {
+  if (EMAIL_DISABLED) {
+    logger.warn(`Email delivery disabled. Skipping email to ${to} (${subject})`);
+    return {
+      messageId: 'email-disabled',
+      accepted: [],
+      rejected: [to],
+      envelope: {
+        from: process.env.EMAIL_FROM || 'noreply@kco.com',
+        to: [to],
+      },
+    };
+  }
+
   const mailOptions = {
     from: `"KCO Freight" <${process.env.EMAIL_FROM || 'noreply@kco.com'}>`,
     to,

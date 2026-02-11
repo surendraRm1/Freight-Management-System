@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import SyncStatusPanel from '../sync/SyncStatusPanel';
+import ConnectivityBadge from '../system/ConnectivityBadge';
 import TaraSidebar from '../assistant/TaraSidebar';
 
 const NAV_SECTIONS = [
@@ -430,24 +432,28 @@ const DashboardLayout = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div className="hidden text-right sm:block">
-                  <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
-                  <p className="text-xs text-slate-500">{user?.email}</p>
+              <div className="flex flex-col items-end gap-3">
+                <SyncStatusPanel />
+                <ConnectivityBadge />
+                <div className="flex items-center gap-3">
+                  <div className="hidden text-right sm:block">
+                    <p className="text-sm font-semibold text-slate-900">{user?.name}</p>
+                    <p className="text-xs text-slate-500">{user?.email}</p>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-lg font-semibold text-white shadow">
+                    {user?.name?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden rounded-full bg-blue-100 px-3 py-1 text-xs font-medium uppercase text-blue-700 sm:inline-block">
+                    {roleLabel || user?.role}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-lg font-semibold text-white shadow">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
-                <span className="hidden rounded-full bg-blue-100 px-3 py-1 text-xs font-medium uppercase text-blue-700 sm:inline-block">
-                  {roleLabel || user?.role}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center gap-2 rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Logout
-                </button>
               </div>
             </div>
           </header>

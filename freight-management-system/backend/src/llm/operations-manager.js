@@ -1,5 +1,5 @@
-const { BookingStatus, QuoteStatus, ShipmentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
+const { BookingStatus, QuoteStatus, ShipmentStatus } = require('../constants/prismaEnums');
 
 const DEFAULT_LIMIT = 20;
 

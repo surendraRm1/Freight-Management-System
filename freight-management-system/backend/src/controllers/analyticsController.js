@@ -1,6 +1,6 @@
-const { ShipmentStatus } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const logger = require('../utils/logger');
+const { ShipmentStatus } = require('../constants/prismaEnums');
 
 const safeQuery = (promise, fallback) =>
   promise.catch((error) => {

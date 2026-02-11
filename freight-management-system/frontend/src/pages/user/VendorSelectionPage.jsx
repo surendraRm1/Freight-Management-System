@@ -14,6 +14,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import useSyncMutation from '../../hooks/useSyncMutation';
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(value);
@@ -33,6 +34,7 @@ const VendorSelectionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { api } = useAuth();
+  const runSyncMutation = useSyncMutation();
 
   const {
     calculationData,
@@ -86,7 +88,7 @@ const VendorSelectionPage = () => {
     setQuoteSuccess('');
 
     try {
-      await api.post('/quotes', {
+      const payload = {
         fromLocation: calculationData.fromLocation,
         toLocation: calculationData.toLocation,
         fromLat: calculationData.fromLat,
@@ -98,12 +100,25 @@ const VendorSelectionPage = () => {
         urgency: calculationData.urgency,
         notes: quoteNotes,
         vendorIds: selectedTransporters,
+      };
+
+      const result = await runSyncMutation({
+        request: (client) => client.post('/quotes', payload),
+        queue: {
+          entityType: 'QUOTE_REQUEST',
+          action: 'CREATE_QUOTE_REQUEST',
+          payload,
+        },
       });
 
-      setQuoteSuccess('Quotation request sent. We will notify you as soon as transporters respond.');
+      setQuoteSuccess(
+        result.queued
+          ? 'Offline: quotation request queued and will sync automatically.'
+          : 'Quotation request sent. We will notify you as soon as transporters respond.',
+      );
       setQuoteNotes('');
     } catch (err) {
-      setQuoteError(err.response?.data?.error || 'Failed to submit quotation request.');
+      setQuoteError(err.response?.data?.error || err.message || 'Failed to submit quotation request.');
     } finally {
       setQuoteRequesting(false);
     }

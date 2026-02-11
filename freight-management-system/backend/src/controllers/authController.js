@@ -9,6 +9,7 @@ const { sendPasswordResetEmail, sendTwoFactorCodeEmail } = require('../services/
 const RESET_TOKEN_TTL_MINUTES = 30;
 const TWO_FACTOR_TTL_MINUTES = 10;
 const ALLOWED_PUBLIC_ROLES = new Set(['USER', 'VENDOR', 'AGENT']);
+const EMAILS_DISABLED = process.env.DISABLE_EMAIL_DELIVERY === 'true';
 
 const register = async (req, res) => {
   const {
@@ -179,19 +180,23 @@ const login = async (req, res) => {
     }
 
     if (user.twoFactorEnabled) {
-      if (!twoFactorCode || !challengeId) {
-        const challenge = await createTwoFactorChallenge(user);
-        return res.status(202).json({
-          twoFactorRequired: true,
-          challengeId: challenge.id,
-          expiresAt: challenge.expiresAt,
-          message: 'Verification code sent to your email address.',
-        });
-      }
+      if (EMAILS_DISABLED) {
+        logger.warn('Two-factor enabled but email delivery disabled; skipping challenge.', { userId: user.id });
+      } else {
+        if (!twoFactorCode || !challengeId) {
+          const challenge = await createTwoFactorChallenge(user);
+          return res.status(202).json({
+            twoFactorRequired: true,
+            challengeId: challenge.id,
+            expiresAt: challenge.expiresAt,
+            message: 'Verification code sent to your email address.',
+          });
+        }
 
-      const validTwoFactor = await verifyTwoFactorChallenge(user.id, challengeId, twoFactorCode);
-      if (!validTwoFactor) {
-        return res.status(401).json({ error: 'Invalid two-factor code.' });
+        const validTwoFactor = await verifyTwoFactorChallenge(user.id, challengeId, twoFactorCode);
+        if (!validTwoFactor) {
+          return res.status(401).json({ error: 'Invalid two-factor code.' });
+        }
       }
     }
 

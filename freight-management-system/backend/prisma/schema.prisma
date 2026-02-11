@@ -97,6 +97,13 @@ enum DocumentType {
   LORRY_RECEIPT
 }
 
+enum SyncStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  ERROR
+}
+
 model Company {
   id                 Int       @id @default(autoincrement())
   name               String
@@ -110,6 +117,8 @@ model Company {
   status             String    @default("active")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  isSynced           Boolean   @default(false)
+  deviceId           String?
 
   users               User[]
   shipments           Shipment[]
@@ -161,6 +170,8 @@ model User {
   allowedIpRanges Json?        @default("[]")
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
+  isSynced       Boolean        @default(false)
+  deviceId       String?
 
   company             Company?             @relation(fields: [companyId], references: [id])
   vendor              Vendor?              @relation(fields: [vendorId], references: [id])
@@ -221,6 +232,8 @@ model Vendor {
   companyId Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isSynced  Boolean  @default(false)
+  deviceId  String?
 
   company        Company?             @relation(fields: [companyId], references: [id])
   profile        VendorProfile?
@@ -331,6 +344,8 @@ model QuoteRequest {
   approvedResponseId Int?        @unique
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
+  isSynced           Boolean     @default(false)
+  deviceId           String?
 
   createdBy        User            @relation(fields: [createdByUserId], references: [id])
   responses        QuoteResponse[]
@@ -351,6 +366,8 @@ model QuoteResponse {
   transporterNotes  String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  isSynced          Boolean            @default(false)
+  deviceId          String?
 
   quoteRequest QuoteRequest  @relation(fields: [quoteRequestId], references: [id])
   vendor       Vendor        @relation(fields: [vendorId], references: [id])
@@ -414,6 +431,8 @@ model Shipment {
   podNotes                 String?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
+  isSynced                 Boolean         @default(false)
+  deviceId                 String?
 
   user                User                 @relation("shipment_owner", fields: [userId], references: [id])
   company             Company?             @relation(fields: [companyId], references: [id])
@@ -460,6 +479,8 @@ model Invoice {
   metadata      Json?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  isSynced      Boolean       @default(false)
+  deviceId      String?
 
   shipment  Shipment  @relation(fields: [shipmentId], references: [id])
   payments  Payment[]
@@ -571,4 +592,17 @@ model ComplianceEvent {
   recordedAt DateTime @default(now())
 
   document ComplianceDocument @relation(fields: [documentId], references: [id])
+}
+
+model SyncQueue {
+  id           Int        @id @default(autoincrement())
+  entityType   String
+  entityId     String?
+  action       String
+  payload      Json
+  status       SyncStatus @default(PENDING)
+  errorMessage String?
+  attempts     Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 }

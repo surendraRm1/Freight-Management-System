@@ -1,5 +1,6 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SyncProvider } from './context/SyncContext';
 import LoginPage from './pages/auth/LoginPage.jsx';
 import RegisterPage from './pages/auth/RegisterPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
@@ -112,11 +113,16 @@ const RootRedirect = () => {
   return <Navigate to={getLandingRoute(user?.role)} replace />;
 };
 
+const RouterComponent = typeof window !== 'undefined' && window.location.protocol === 'file:'
+  ? HashRouter
+  : BrowserRouter;
+
 const App = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <SyncProvider>
+        <RouterComponent>
+          <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -332,7 +338,8 @@ const App = () => {
           {/* Fallback for unknown routes */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+        </RouterComponent>
+      </SyncProvider>
     </AuthProvider>
   );
 };
